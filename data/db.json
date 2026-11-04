@@ -1,0 +1,652 @@
+{
+  "settings": {
+    "storeName": "Dimsummentai Mamifayy",
+    "storeTagline": "Dimsum Mentai Gurih, Creamy & Ditorch Sempurna",
+    "storeAddress": "Jalan Raya Kadungora Kp. Sindangsari Rt.03 Rw.07",
+    "adminPhone": "6281234567890",
+    "qrisHolder": "Dimsummentai Mamifayy",
+    "qrisBank": "BCA / QRIS Nasional",
+    "openingHours": "Buka Setiap Hari: 10.00 - 21.00 WIB"
+  },
+  "products": [
+    {
+      "id": "prod-mentai",
+      "name": "Dimsum Mentai Spesial Mamifayy",
+      "category": "Signature",
+      "description": "Dimsum lembut dipadu saus mentai gurih creamy khas Mamifayy yang ditorch hingga harum menggoda.",
+      "image": "/images/products/dimsum-mentai.jpg",
+      "portions": [
+        {
+          "pcs": 6,
+          "price": 26000
+        },
+        {
+          "pcs": 8,
+          "price": 34000
+        },
+        {
+          "pcs": 10,
+          "price": 42000
+        },
+        {
+          "pcs": 16,
+          "price": 65000
+        }
+      ],
+      "allowedToppings": [
+        {
+          "id": "original",
+          "name": "Original Mentai",
+          "price": 0
+        },
+        {
+          "id": "mozzarella",
+          "name": "Extra Keju Mozzarella",
+          "price": 5000
+        },
+        {
+          "id": "melting",
+          "name": "Extra Keju Melting (Torched)",
+          "price": 6000
+        }
+      ],
+      "isAvailable": true
+    },
+    {
+      "id": "prod-ayam",
+      "name": "Dimsum Ayam Original Mamifayy",
+      "category": "Klasik",
+      "description": "Dimsum olahan daging ayam asli padat dan juicy, disajikan dengan saus cocolan asam manis pedas.",
+      "image": "/images/products/dimsum-ayam.jpg",
+      "portions": [
+        {
+          "pcs": 4,
+          "price": 16000
+        },
+        {
+          "pcs": 6,
+          "price": 23000
+        },
+        {
+          "pcs": 8,
+          "price": 30000
+        },
+        {
+          "pcs": 10,
+          "price": 37000
+        },
+        {
+          "pcs": 16,
+          "price": 58000
+        }
+      ],
+      "allowedToppings": [],
+      "isAvailable": true
+    },
+    {
+      "id": "prod-platter",
+      "name": "Mix Platter Party Box",
+      "category": "Favorit",
+      "description": "Kombinasi lengkap aneka varian dimsum kukus & goreng dengan siraman mentai torch melimpah.",
+      "image": "/images/products/mix-platter.jpg",
+      "portions": [
+        {
+          "pcs": 8,
+          "price": 35000
+        },
+        {
+          "pcs": 10,
+          "price": 44000
+        },
+        {
+          "pcs": 16,
+          "price": 68000
+        }
+      ],
+      "allowedToppings": [],
+      "isAvailable": true
+    },
+    {
+      "id": "prod-pangsit",
+      "name": "Pangsit Goreng Renyah Mamifayy",
+      "category": "Gorengan",
+      "description": "Kulit pangsit renyah keemasan dengan isian daging ayam tebal gurih, sangat cocok untuk camilan.",
+      "image": "/images/products/pangsit-goreng.jpg",
+      "portions": [
+        {
+          "pcs": 4,
+          "price": 14000
+        },
+        {
+          "pcs": 6,
+          "price": 20000
+        },
+        {
+          "pcs": 8,
+          "price": 26000
+        },
+        {
+          "pcs": 10,
+          "price": 32000
+        }
+      ],
+      "allowedToppings": [],
+      "isAvailable": true
+    }
+  ],
+  "orders": [
+    {
+      "customerName": "adit",
+      "customerPhone": "081460923884",
+      "customerAddress": "Pickup Outlet: Jalan Raya Kadungora Kp. Sindangsari Rt.03 Rw.07",
+      "customerNotes": "",
+      "deliveryType": "pickup",
+      "deliveryFee": 0,
+      "paymentMethod": "qris",
+      "paymentStatus": "menunggu_pembayaran",
+      "status": "selesai",
+      "items": [
+        {
+          "id": "prod-mentai-6-original",
+          "productId": "prod-mentai",
+          "productName": "Dimsum Mentai Spesial Mamifayy",
+          "portion": 6,
+          "topping": "original",
+          "toppingName": "Original Mentai",
+          "unitPrice": 26000,
+          "quantity": 1,
+          "subtotal": 26000
+        }
+      ],
+      "itemsTotal": 26000,
+      "discountAmount": 0,
+      "voucherCode": "",
+      "pointsUsed": 0,
+      "totalAmount": 26000,
+      "channel": "website",
+      "adminNotes": "",
+      "id": "ord-1793628921640",
+      "orderNumber": "MF-261102-008",
+      "pointsEarned": 5,
+      "createdAt": "2026-11-02T14:15:21.640Z",
+      "updatedAt": "2026-11-03T05:38:54.877Z"
+    },
+    {
+      "customerName": "adit",
+      "customerPhone": "081460923884",
+      "customerAddress": "",
+      "customerNotes": "",
+      "deliveryType": "pickup",
+      "deliveryFee": 0,
+      "paymentMethod": "cod",
+      "paymentStatus": "menunggu_pembayaran",
+      "status": "selesai",
+      "items": [
+        {
+          "id": "prod-mentai-6-original",
+          "productId": "prod-mentai",
+          "productName": "Dimsum Mentai Spesial Mamifayy",
+          "portion": 6,
+          "topping": "original",
+          "toppingName": "Original Mentai",
+          "unitPrice": 26000,
+          "quantity": 1,
+          "subtotal": 26000
+        },
+        {
+          "id": "prod-platter-8-original",
+          "productId": "prod-platter",
+          "productName": "Mix Platter Party Box",
+          "portion": 8,
+          "topping": "original",
+          "toppingName": "Original Campur",
+          "unitPrice": 35000,
+          "quantity": 2,
+          "subtotal": 70000
+        }
+      ],
+      "itemsTotal": 96000,
+      "discountAmount": 0,
+      "voucherCode": "",
+      "pointsUsed": 0,
+      "totalAmount": 96000,
+      "channel": "website",
+      "adminNotes": "",
+      "id": "ord-1793627815818",
+      "orderNumber": "MF-261102-007",
+      "pointsEarned": 10,
+      "createdAt": "2026-11-02T13:56:55.818Z",
+      "updatedAt": "2026-11-03T05:38:57.630Z"
+    },
+    {
+      "customerName": "uda",
+      "customerPhone": "0898655789",
+      "customerAddress": "",
+      "customerNotes": "",
+      "deliveryType": "pickup",
+      "deliveryFee": 0,
+      "paymentMethod": "cod",
+      "paymentStatus": "menunggu_pembayaran",
+      "status": "selesai",
+      "items": [
+        {
+          "id": "prod-mentai-16-original",
+          "productId": "prod-mentai",
+          "productName": "Dimsum Mentai Spesial Mamifayy",
+          "portion": 16,
+          "topping": "original",
+          "toppingName": "Original Mentai",
+          "unitPrice": 65000,
+          "quantity": 2,
+          "subtotal": 130000
+        }
+      ],
+      "itemsTotal": 130000,
+      "discountAmount": 0,
+      "voucherCode": "",
+      "pointsUsed": 0,
+      "totalAmount": 130000,
+      "channel": "website",
+      "adminNotes": "",
+      "id": "ord-1793627481426",
+      "orderNumber": "MF-261102-006",
+      "pointsEarned": 10,
+      "createdAt": "2026-11-02T13:51:21.426Z",
+      "updatedAt": "2026-11-02T13:52:34.412Z"
+    },
+    {
+      "customerName": "gb",
+      "customerPhone": "465756",
+      "customerAddress": "",
+      "customerNotes": "",
+      "deliveryType": "pickup",
+      "deliveryFee": 0,
+      "paymentMethod": "qris",
+      "paymentStatus": "menunggu_pembayaran",
+      "status": "selesai",
+      "items": [
+        {
+          "id": "prod-mentai-10-mozzarella",
+          "productId": "prod-mentai",
+          "productName": "Dimsum Mentai Spesial Mamifayy",
+          "portion": 10,
+          "topping": "mozzarella",
+          "toppingName": "Extra Keju Mozzarella",
+          "unitPrice": 47000,
+          "quantity": 1,
+          "subtotal": 47000
+        }
+      ],
+      "itemsTotal": 47000,
+      "totalAmount": 47000,
+      "channel": "website",
+      "adminNotes": "",
+      "id": "ord-1793604377416",
+      "orderNumber": "MF-261102-005",
+      "createdAt": "2026-11-02T07:26:17.416Z",
+      "updatedAt": "2026-11-02T13:49:35.416Z"
+    },
+    {
+      "customerName": "fahrul",
+      "customerPhone": "085798230978",
+      "customerAddress": "",
+      "customerNotes": "",
+      "deliveryType": "pickup",
+      "deliveryFee": 0,
+      "paymentMethod": "qris",
+      "paymentStatus": "menunggu_pembayaran",
+      "status": "selesai",
+      "items": [
+        {
+          "id": "prod-mentai-6-original",
+          "productId": "prod-mentai",
+          "productName": "Dimsum Mentai Spesial Mamifayy",
+          "portion": 6,
+          "topping": "original",
+          "toppingName": "Original Mentai",
+          "unitPrice": 26000,
+          "quantity": 1,
+          "subtotal": 26000
+        }
+      ],
+      "itemsTotal": 26000,
+      "totalAmount": 26000,
+      "channel": "website",
+      "adminNotes": "",
+      "id": "ord-1793601227577",
+      "orderNumber": "MF-261102-004",
+      "createdAt": "2026-11-02T06:33:47.577Z",
+      "updatedAt": "2026-11-02T06:35:00.165Z"
+    },
+    {
+      "id": "ord-101",
+      "orderNumber": "MF-261102-001",
+      "customerName": "Siti Rahma",
+      "customerPhone": "6281298765432",
+      "customerAddress": "Jl. Melati No. 14, RT 02/05, Kebon Jeruk",
+      "customerNotes": "Pagar warna hitam, titip satpam jika tidak ada orang",
+      "deliveryType": "kurir_toko",
+      "deliveryFee": 10000,
+      "paymentMethod": "qris",
+      "paymentStatus": "lunas",
+      "status": "selesai",
+      "items": [
+        {
+          "id": "item-1",
+          "productId": "prod-mentai",
+          "productName": "Dimsum Mentai Spesial Mamifayy",
+          "portion": 10,
+          "topping": "melting",
+          "toppingName": "Extra Keju Melting (Torched)",
+          "unitPrice": 48000,
+          "quantity": 1,
+          "subtotal": 48000
+        }
+      ],
+      "itemsTotal": 48000,
+      "totalAmount": 58000,
+      "channel": "website",
+      "createdAt": "2026-10-31T06:25:18.865Z",
+      "updatedAt": "2026-10-31T06:25:18.865Z"
+    },
+    {
+      "id": "ord-102",
+      "orderNumber": "MF-261102-002",
+      "customerName": "Dimas Kurniawan",
+      "customerPhone": "6281987654321",
+      "customerAddress": "Jl. Anggrek No. 12 (Dekat Alfamart)",
+      "customerNotes": "Minta saus mentai jangan terlalu gosong ya min",
+      "deliveryType": "kurir_toko",
+      "deliveryFee": 0,
+      "paymentMethod": "cod",
+      "paymentStatus": "menunggu_pembayaran",
+      "status": "selesai",
+      "items": [
+        {
+          "id": "item-2",
+          "productId": "prod-mentai",
+          "productName": "Dimsum Mentai Spesial Mamifayy",
+          "portion": 8,
+          "topping": "mozzarella",
+          "toppingName": "Extra Keju Mozzarella",
+          "unitPrice": 39000,
+          "quantity": 2,
+          "subtotal": 78000
+        },
+        {
+          "id": "item-3",
+          "productId": "prod-pangsit",
+          "productName": "Pangsit Goreng Renyah Mamifayy",
+          "portion": 6,
+          "topping": "original",
+          "toppingName": "Original Crispy",
+          "unitPrice": 20000,
+          "quantity": 1,
+          "subtotal": 20000
+        }
+      ],
+      "itemsTotal": 98000,
+      "totalAmount": 98000,
+      "channel": "website",
+      "createdAt": "2026-11-02T06:10:18.865Z",
+      "updatedAt": "2026-11-02T13:49:46.304Z"
+    },
+    {
+      "id": "ord-103",
+      "orderNumber": "MF-261102-003",
+      "customerName": "Lina Marlina",
+      "customerPhone": "6282112344321",
+      "customerAddress": "",
+      "customerNotes": "Ambil jam 14.30 sepulang kantor",
+      "deliveryType": "pickup",
+      "deliveryFee": 0,
+      "paymentMethod": "qris",
+      "paymentStatus": "lunas",
+      "status": "selesai",
+      "items": [
+        {
+          "id": "item-4",
+          "productId": "prod-platter",
+          "productName": "Mix Platter Party Box",
+          "portion": 16,
+          "topping": "melting",
+          "toppingName": "Double Keju Melting Torch",
+          "unitPrice": 74000,
+          "quantity": 1,
+          "subtotal": 74000
+        }
+      ],
+      "itemsTotal": 74000,
+      "totalAmount": 74000,
+      "channel": "website",
+      "createdAt": "2026-11-02T05:40:18.865Z",
+      "updatedAt": "2026-11-02T13:54:00.401Z"
+    }
+  ],
+  "customers": [
+    {
+      "id": "cust-1",
+      "name": "Siti Rahma",
+      "phone": "6281298765432",
+      "address": "Jl. Melati No. 14, RT 02/05, Kebon Jeruk",
+      "totalOrders": 4,
+      "totalSpent": 168000,
+      "lastOrderDate": "2026-10-31T06:25:18.864Z",
+      "favoriteItems": [
+        "Dimsum Mentai Spesial (isi 10)",
+        "Extra Keju Melting"
+      ],
+      "tag": "loyal",
+      "notes": "Pelanggan setia, suka extra torch mentai gurih.",
+      "createdAt": "2026-10-03T06:25:18.865Z",
+      "updatedAt": "2026-11-02T06:25:18.865Z",
+      "points": 5
+    },
+    {
+      "id": "cust-2",
+      "name": "Budi Santoso",
+      "phone": "6285712345678",
+      "address": "Komplek Permata Blok B3 No. 8",
+      "totalOrders": 2,
+      "totalSpent": 86000,
+      "lastOrderDate": "2026-10-13T06:25:18.865Z",
+      "favoriteItems": [
+        "Mix Platter Party Box (isi 8)"
+      ],
+      "tag": "lama_tidak_order",
+      "notes": "Sudah >14 hari belum order lagi. Perlu disapa promo akhir pekan!",
+      "createdAt": "2026-09-23T06:25:18.865Z",
+      "updatedAt": "2026-11-02T06:25:18.865Z",
+      "points": 5
+    },
+    {
+      "id": "cust-3",
+      "name": "Amanda Putri",
+      "phone": "6281355554321",
+      "address": "Jl. Kemang Raya No. 45, Jaksel",
+      "totalOrders": 1,
+      "totalSpent": 39000,
+      "lastOrderDate": "2026-11-01T06:25:18.865Z",
+      "favoriteItems": [
+        "Dimsum Ayam Original (isi 6)"
+      ],
+      "tag": "baru",
+      "notes": "Order perdana via web Instagram bio.",
+      "createdAt": "2026-11-01T06:25:18.865Z",
+      "updatedAt": "2026-11-02T06:25:18.865Z",
+      "points": 5
+    },
+    {
+      "id": "cust-1793601081727",
+      "name": "Lina Marlina",
+      "phone": "6282112344321",
+      "address": "",
+      "totalOrders": 2,
+      "totalSpent": 148000,
+      "lastOrderDate": "2026-11-02T05:40:18.865Z",
+      "favoriteItems": [
+        "Mix Platter Party Box (16 pcs)"
+      ],
+      "tag": "baru",
+      "createdAt": "2026-11-02T06:31:21.727Z",
+      "updatedAt": "2026-11-02T13:54:00.401Z",
+      "points": 5
+    },
+    {
+      "id": "cust-1793601227577",
+      "name": "fahrul",
+      "phone": "085798230978",
+      "address": "",
+      "totalOrders": 5,
+      "totalSpent": 130000,
+      "lastOrderDate": "2026-11-02T06:33:47.577Z",
+      "favoriteItems": [
+        "Dimsum Mentai Spesial Mamifayy (6 pcs)"
+      ],
+      "tag": "baru",
+      "createdAt": "2026-11-02T06:33:47.577Z",
+      "updatedAt": "2026-11-02T06:35:00.165Z",
+      "points": 5,
+      "password": "123456"
+    },
+    {
+      "id": "cust-1793601335411",
+      "name": "Dimas Kurniawan",
+      "phone": "6281987654321",
+      "address": "Jl. Anggrek No. 12 (Dekat Alfamart)",
+      "totalOrders": 4,
+      "totalSpent": 392000,
+      "lastOrderDate": "2026-11-02T06:10:18.865Z",
+      "favoriteItems": [
+        "Dimsum Mentai Spesial Mamifayy (8 pcs)",
+        "Pangsit Goreng Renyah Mamifayy (6 pcs)"
+      ],
+      "tag": "baru",
+      "createdAt": "2026-11-02T06:35:35.411Z",
+      "updatedAt": "2026-11-02T13:49:46.304Z",
+      "points": 5
+    },
+    {
+      "id": "cust-1793604377416",
+      "name": "gb",
+      "phone": "465756",
+      "address": "",
+      "totalOrders": 5,
+      "totalSpent": 235000,
+      "lastOrderDate": "2026-11-02T07:26:17.416Z",
+      "favoriteItems": [
+        "Dimsum Mentai Spesial Mamifayy (10 pcs)"
+      ],
+      "tag": "baru",
+      "createdAt": "2026-11-02T07:26:17.416Z",
+      "updatedAt": "2026-11-02T13:49:35.417Z",
+      "points": 5
+    },
+    {
+      "id": "cust-1793622723076",
+      "name": "siti",
+      "password": "123456",
+      "phone": "",
+      "address": "",
+      "points": 100,
+      "redeemedRewards": [],
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderDate": "2026-11-02T12:32:03.076Z",
+      "favoriteItems": [],
+      "tag": "baru",
+      "createdAt": "2026-11-02T12:32:03.076Z",
+      "updatedAt": "2026-11-02T12:32:03.076Z"
+    },
+    {
+      "id": "cust-1793623765526",
+      "name": "fahrul",
+      "phone": "085798230868",
+      "address": "",
+      "points": 100,
+      "redeemedRewards": [],
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderDate": "2026-11-02T12:49:25.526Z",
+      "favoriteItems": [],
+      "tag": "baru",
+      "createdAt": "2026-11-02T12:49:25.526Z",
+      "updatedAt": "2026-11-02T12:49:25.526Z"
+    },
+    {
+      "id": "cust-1793624834356",
+      "name": "rahma",
+      "phone": "081274803494",
+      "address": "",
+      "points": 100,
+      "redeemedRewards": [],
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderDate": "2026-11-02T13:07:14.356Z",
+      "favoriteItems": [],
+      "tag": "baru",
+      "createdAt": "2026-11-02T13:07:14.356Z",
+      "updatedAt": "2026-11-02T13:07:14.356Z"
+    },
+    {
+      "id": "cust-1793627465315",
+      "name": "uda",
+      "phone": "0898655789",
+      "address": "",
+      "points": 150,
+      "redeemedRewards": [],
+      "totalOrders": 5,
+      "totalSpent": 650000,
+      "lastOrderDate": "2026-11-02T13:51:21.426Z",
+      "favoriteItems": [
+        "Dimsum Mentai Spesial Mamifayy (16 pcs)"
+      ],
+      "tag": "baru",
+      "createdAt": "2026-11-02T13:51:05.315Z",
+      "updatedAt": "2026-11-02T13:52:34.412Z"
+    },
+    {
+      "id": "cust-1793627785072",
+      "name": "adit",
+      "phone": "081460923884",
+      "address": "Pickup Outlet: Jalan Raya Kadungora Kp. Sindangsari Rt.03 Rw.07",
+      "points": 175,
+      "redeemedRewards": [],
+      "totalOrders": 10,
+      "totalSpent": 610000,
+      "lastOrderDate": "2026-11-02T13:56:55.818Z",
+      "favoriteItems": [
+        "Dimsum Mentai Spesial Mamifayy (6 pcs)",
+        "Mix Platter Party Box (8 pcs)"
+      ],
+      "tag": "baru",
+      "createdAt": "2026-11-02T13:56:25.072Z",
+      "updatedAt": "2026-11-03T05:38:57.630Z"
+    },
+    {
+      "id": "cust-1793629098402",
+      "name": "yusuf",
+      "phone": "08976543269",
+      "address": "",
+      "points": 0,
+      "redeemedRewards": [
+        {
+          "id": "rwd-1793629102846",
+          "rewardType": "voucher_10",
+          "title": "Voucher Diskon 10%",
+          "pointsSpent": 100,
+          "discountPercent": 10,
+          "isUsed": false,
+          "createdAt": "2026-11-02T14:18:22.846Z"
+        }
+      ],
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderDate": "2026-11-02T14:18:18.402Z",
+      "favoriteItems": [],
+      "tag": "baru",
+      "createdAt": "2026-11-02T14:18:18.403Z",
+      "updatedAt": "2026-11-02T14:18:22.846Z"
+    }
+  ]
+}

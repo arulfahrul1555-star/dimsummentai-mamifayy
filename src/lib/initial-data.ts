@@ -1,0 +1,78 @@
+import { Product, StoreSettings } from '@/types';
+
+export const INITIAL_STORE_SETTINGS: StoreSettings = {
+  storeName: 'Dimsummentai Mamifayy',
+  storeTagline: 'Dimsum Mentai Gurih, Creamy & Ditorch Sempurna',
+  storeAddress: 'Jalan Raya Kadungora Kp. Sindangsari Rt.03 Rw.07',
+  adminPhone: '6281234567890',
+  qrisHolder: 'Dimsummentai Mamifayy',
+  qrisBank: 'BCA / QRIS Nasional',
+  openingHours: 'Buka Setiap Hari: 10.00 - 21.00 WIB',
+};
+
+export const INITIAL_PRODUCTS: Product[] = [
+  {
+    id: 'prod-mentai',
+    name: 'Dimsum Mentai Spesial Mamifayy',
+    category: 'Signature',
+    description: 'Dimsum lembut dipadu saus mentai gurih creamy khas Mamifayy yang ditorch hingga harum menggoda.',
+    image: '/images/products/dimsum-mentai.jpg',
+    portions: [
+      { pcs: 6, price: 26000 },
+      { pcs: 8, price: 34000 },
+      { pcs: 10, price: 42000 },
+      { pcs: 16, price: 65000 },
+    ],
+    allowedToppings: [
+      { id: 'original', name: 'Original Mentai', price: 0 },
+      { id: 'mozzarella', name: 'Extra Keju Mozzarella', price: 5000 },
+      { id: 'melting', name: 'Extra Keju Melting (Torched)', price: 6000 },
+    ],
+    isAvailable: true,
+  },
+  {
+    id: 'prod-ayam',
+    name: 'Dimsum Ayam Original Mamifayy',
+    category: 'Klasik',
+    description: 'Dimsum olahan daging ayam asli padat dan juicy, disajikan dengan saus cocolan asam manis pedas.',
+    image: '/images/products/dimsum-ayam.jpg',
+    portions: [
+      { pcs: 4, price: 16000 },
+      { pcs: 6, price: 23000 },
+      { pcs: 8, price: 30000 },
+      { pcs: 10, price: 37000 },
+      { pcs: 16, price: 58000 },
+    ],
+    allowedToppings: [], // Tanpa pilihan topping
+    isAvailable: true,
+  },
+  {
+    id: 'prod-platter',
+    name: 'Mix Platter Party Box',
+    category: 'Favorit',
+    description: 'Kombinasi lengkap aneka varian dimsum kukus & goreng dengan siraman mentai torch melimpah.',
+    image: '/images/products/mix-platter.jpg',
+    portions: [
+      { pcs: 8, price: 35000 },
+      { pcs: 10, price: 44000 },
+      { pcs: 16, price: 68000 },
+    ],
+    allowedToppings: [], // Tanpa pilihan topping
+    isAvailable: true,
+  },
+  {
+    id: 'prod-pangsit',
+    name: 'Pangsit Goreng Renyah Mamifayy',
+    category: 'Gorengan',
+    description: 'Kulit pangsit renyah keemasan dengan isian daging ayam tebal gurih, sangat cocok untuk camilan.',
+    image: '/images/products/pangsit-goreng.jpg',
+    portions: [
+      { pcs: 4, price: 14000 },
+      { pcs: 6, price: 20000 },
+      { pcs: 8, price: 26000 },
+      { pcs: 10, price: 32000 },
+    ],
+    allowedToppings: [], // Tanpa pilihan topping
+    isAvailable: true,
+  },
+];
