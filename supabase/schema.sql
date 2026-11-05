@@ -271,6 +271,76 @@ VALUES
     '[{"pcs": 4, "price": 14000}, {"pcs": 6, "price": 20000}, {"pcs": 8, "price": 26000}, {"pcs": 10, "price": 32000}]'::jsonb,
     '[]'::jsonb,
     true
+  ),
+  (
+    'tart-1',
+    'PAKET TART 1',
+    'Dimsum Tart',
+    '8 pcs dimsum mentai spesial berhias pita cantik & lilin mini.',
+    '/images/products/tart-1.jpg',
+    '[{"pcs": 8, "price": 40000}]'::jsonb,
+    '[]'::jsonb,
+    true
+  ),
+  (
+    'tart-2',
+    'PAKET TART 2',
+    'Dimsum Tart',
+    '10 pcs dimsum mentai lezat dengan lelehan saus mentai gurih melimpah.',
+    '/images/products/tart-2.jpg',
+    '[{"pcs": 10, "price": 50000}]'::jsonb,
+    '[]'::jsonb,
+    true
+  ),
+  (
+    'tart-3',
+    'PAKET TART 3',
+    'Dimsum Tart',
+    'Mentai special love bentuk hati eksklusif penuh cinta.',
+    '/images/products/tart-3.jpg',
+    '[{"pcs": 10, "price": 60000}]'::jsonb,
+    '[]'::jsonb,
+    true
+  ),
+  (
+    'tart-4',
+    'PAKET TART 4',
+    'Dimsum Tart',
+    '16 pcs dimsum mentai porsi jumbo untuk perayaan bersama keluarga & teman.',
+    '/images/products/tart-4.jpg',
+    '[{"pcs": 16, "price": 80000}]'::jsonb,
+    '[]'::jsonb,
+    true
+  ),
+  (
+    'tart-5',
+    'PAKET TART 5',
+    'Dimsum Tart',
+    'Mentai special cake bertingkat estetik pengganti kue ulang tahun biasa.',
+    '/images/products/tart-5.jpg',
+    '[{"pcs": 14, "price": 75000}]'::jsonb,
+    '[]'::jsonb,
+    true
+  ),
+  (
+    'platter-reguler',
+    'MIX PLATTER REGULER',
+    'Dimsum Tart',
+    'Mentai isi 2, dimsum ori 3, pangsit crispy 4.',
+    '/images/products/platter-reguler.jpg',
+    '[{"pcs": 9, "price": 30000}]'::jsonb,
+    '[]'::jsonb,
+    true
+  ),
+  (
+    'platter-large',
+    'MIX PLATTER LARGE',
+    'Dimsum Tart',
+    '6 pcs dimsum mentai, pangsit selimut, dimsum ori 3, pangsit goreng 3.',
+    '/images/products/platter-large.jpg',
+    '[{"pcs": 14, "price": 55000}]'::jsonb,
+    '[]'::jsonb,
+    true
   )
 ON CONFLICT (id) DO NOTHING;
 

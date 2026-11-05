@@ -457,7 +457,7 @@ export default function PublicMenuPage() {
     }
   };
 
-  const categories = ['Semua', 'Signature', 'Klasik', 'Favorit', 'Gorengan'];
+  const categories = ['Semua', 'Signature', 'Dimsum Tart', 'Klasik', 'Favorit', 'Gorengan'];
   const filteredProducts =
     selectedCategory === 'Semua'
       ? products
@@ -601,6 +601,37 @@ export default function PublicMenuPage() {
                 Tukar Poin 🎁
               </span>
             </div>
+
+            {/* Special Banner: Menu Dimsum Tart Mamifayy */}
+            <Link
+              href="/dimsum-tart"
+              className="mt-3 block bg-gradient-to-r from-blue-900/90 via-blue-800 to-indigo-900 hover:from-blue-950 hover:to-indigo-950 text-white p-3.5 sm:p-4 rounded-2xl shadow-md border border-white/20 transition transform hover:-translate-y-0.5 active:translate-y-0"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center font-black shrink-0 shadow-sm text-lg">
+                    🎂
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        Menu Baru
+                      </span>
+                      <span className="font-extrabold text-xs sm:text-sm text-white flex items-center gap-1">
+                        Menu Dimsum Tart Mamifayy
+                        <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                      </span>
+                    </div>
+                    <p className="text-[11px] sm:text-xs text-blue-100 mt-0.5 line-clamp-1">
+                      Paket Tart 1-5 & Mix Platter spesial perayaan mulai Rp 30.000!
+                    </p>
+                  </div>
+                </div>
+                <span className="bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-3 py-1.5 rounded-xl shrink-0 flex items-center gap-1 border border-white/20">
+                  Lihat Menu ➔
+                </span>
+              </div>
+            </Link>
           </div>
         </div>
       </section>
