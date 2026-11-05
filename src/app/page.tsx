@@ -27,6 +27,8 @@ import {
   User,
   Lock,
   Check,
+  Calendar,
+  Cake,
 } from 'lucide-react';
 import { Product, PortionOption, ToppingOption, DeliveryType, PaymentMethod } from '@/types';
 import { formatRupiah } from '@/lib/whatsapp';
@@ -97,6 +99,8 @@ export default function PublicMenuPage() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
   const [customerNotes, setCustomerNotes] = useState('');
+  const [bookingDate, setBookingDate] = useState('');
+  const [bookingTime, setBookingTime] = useState('');
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('kurir_toko');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('qris');
   const [submitting, setSubmitting] = useState(false);
@@ -214,6 +218,12 @@ export default function PublicMenuPage() {
 
   const cartItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const cartSubtotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
+  const hasTartItem = cart.some(
+    (item) =>
+      item.productId.startsWith('tart-') ||
+      item.productId.startsWith('platter-') ||
+      products.find((p) => p.id === item.productId)?.category === 'Dimsum Tart'
+  );
 
   // Dynamic discount calculation (supports percentage or fixed)
   const discountAmount = appliedVoucher
@@ -409,6 +419,10 @@ export default function PublicMenuPage() {
       alert('Mohon isi Nama dan Nomor WhatsApp aktif Kak!');
       return;
     }
+    if (hasTartItem && (!bookingDate || !bookingTime)) {
+      alert('Pesanan Kakak berisi paket Dimsum Tart/Mix Platter. Harap pilih Tanggal dan Jam Booking pengantaran!');
+      return;
+    }
     if (deliveryType === 'kurir_toko' && !customerAddress.trim()) {
       alert('Mohon masukkan Alamat Pengiriman lengkap untuk Kurir Toko!');
       return;
@@ -416,6 +430,10 @@ export default function PublicMenuPage() {
 
     setSubmitting(true);
     try {
+      const finalCustomerNotes = hasTartItem
+        ? `📅 JADWAL BOOKING: ${bookingDate} Pukul ${bookingTime} WIB${customerNotes ? ` | ${customerNotes}` : ''}`
+        : customerNotes;
+
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -426,7 +444,7 @@ export default function PublicMenuPage() {
             deliveryType === 'pickup'
               ? 'Pickup Outlet: Jalan Raya Kadungora Kp. Sindangsari Rt.03 Rw.07'
               : customerAddress,
-          customerNotes,
+          customerNotes: finalCustomerNotes,
           deliveryType,
           deliveryFee: 0, // Admin will set this during approval
           paymentMethod,
@@ -927,6 +945,64 @@ export default function PublicMenuPage() {
                     Untuk konfirmasi pesanan dan info posisi kurir toko.
                   </p>
                 </div>
+
+                {/* Tart Booking Schedule (Only shown if cart has Dimsum Tart items) */}
+                {hasTartItem && (
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-3.5 space-y-3 animate-in fade-in duration-200">
+                    <div className="flex items-center gap-2 text-blue-900 font-extrabold text-xs">
+                      <Calendar className="w-4 h-4 text-blue-700" />
+                      <span>Jadwal Booking Dimsum Tart *</span>
+                    </div>
+                    <p className="text-[11px] text-blue-900 leading-tight">
+                      Pesanan mengandung paket Dimsum Tart / Mix Platter. Tentukan tanggal & waktu acara Kakak:
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-700 block mb-1">
+                          Tanggal Booking *
+                        </label>
+                        <input
+                          type="date"
+                          required
+                          min={new Date().toISOString().split('T')[0]}
+                          value={bookingDate}
+                          onChange={(e) => setBookingDate(e.target.value)}
+                          className="w-full text-xs p-2 rounded-xl border border-blue-300 bg-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-700 block mb-1">
+                          Jam / Waktu *
+                        </label>
+                        <input
+                          type="time"
+                          required
+                          value={bookingTime}
+                          onChange={(e) => setBookingTime(e.target.value)}
+                          className="w-full text-xs p-2 rounded-xl border border-blue-300 bg-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1 pt-0.5">
+                      {['10:00', '12:00', '14:00', '16:00', '18:00', '20:00'].map((time) => (
+                        <button
+                          type="button"
+                          key={time}
+                          onClick={() => setBookingTime(time)}
+                          className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition ${
+                            bookingTime === time
+                              ? 'bg-blue-700 text-white shadow-xs'
+                              : 'bg-white border border-blue-200 text-blue-800 hover:bg-blue-100/50'
+                          }`}
+                        >
+                          {time} WIB
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Member Account & Points Reward in Checkout */}
                 <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-3.5 space-y-2">

@@ -99,7 +99,7 @@ flowchart TD
 | **FR-01.4** | Pilihan Metode Pengiriman | 1. **Kurir Toko**: Wajib mengisi alamat lengkap pengiriman. Ongkir awal bernilai Rp 0 (diisi manual oleh admin saat konfirmasi).<br>2. **Ambil di Outlet (Pickup)**: Otomatis menampilkan alamat fisik: `📍 Jalan Raya Kadungora Kp. Sindangsari Rt.03 Rw.07`. Ongkir Rp 0. |
 | **FR-01.5** | Pilihan Metode Pembayaran | Pelanggan dapat memilih `QRIS / Transfer Bank` atau `Bayar Tunai di Tempat (COD)`. |
 | **FR-01.6** | Live Order Tracking | Setelah pesanan dikirim, pelanggan dialihkan ke halaman `/order/[id]` yang melakukan polling otomatis status pesanan dari `Menunggu Konfirmasi` hingga `Selesai`. |
-| **FR-01.7** | Menu Spesial Dimsum Tart & Mix Platter | Halaman dedicated `/dimsum-tart` dan filter kategori `Dimsum Tart` menampilkan 7 varian paket kue tart & mix platter: Paket Tart 1 s/d 5 (Rp 40rb - Rp 80rb) dan Mix Platter Reguler & Large (Rp 30rb - Rp 55rb) dengan integrasi pemesanan WhatsApp langsung. |
+| **FR-01.7** | Menu Spesial Dimsum Tart & Sistem Booking | Halaman dedicated `/dimsum-tart` dan filter kategori `Dimsum Tart` menampilkan 7 varian paket kue tart & mix platter: Paket Tart 1 s/d 5 (Rp 40rb - Rp 80rb) dan Mix Platter Reguler & Large (Rp 30rb - Rp 55rb). Pemesanan menggunakan sistem in-app booking terintegrasi dengan penentuan tanggal dan jam pengantaran/pengambilan, tersimpan langsung ke database pesanan tanpa dialihkan ke WhatsApp, serta memiliki live order tracking. |
 
 ### 4.2 Modul 2: Autentikasi Member & Loyalitas Poin
 | ID | Kebutuhan Fungsional | Kriteria Penerimaan (*Acceptance Criteria*) |

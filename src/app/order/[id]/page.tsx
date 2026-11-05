@@ -17,6 +17,7 @@ import {
   RefreshCw,
   QrCode,
   ShieldCheck,
+  Calendar,
 } from 'lucide-react';
 import { Order } from '@/types';
 import { formatRupiah, createWhatsAppUrl } from '@/lib/whatsapp';
@@ -410,9 +411,20 @@ export default function OrderTrackingPage() {
           )}
 
           {order.customerNotes && (
-            <div>
-              <span className="text-slate-400 block text-[11px]">Catatan Khusus:</span>
-              <span className="font-medium text-slate-800">{order.customerNotes}</span>
+            <div className={`p-3 rounded-xl border ${
+              order.customerNotes.includes('BOOKING') || order.customerNotes.includes('Booking')
+                ? 'bg-blue-50/80 border-blue-200 text-blue-950 shadow-xs'
+                : 'bg-slate-50 border-slate-200 text-slate-800'
+            }`}>
+              <div className="flex items-center gap-1.5 font-bold text-xs text-blue-900 mb-1">
+                {order.customerNotes.includes('BOOKING') || order.customerNotes.includes('Booking') ? (
+                  <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                ) : (
+                  <Clock className="w-3.5 h-3.5 text-slate-500" />
+                )}
+                <span>{order.customerNotes.includes('BOOKING') || order.customerNotes.includes('Booking') ? 'Jadwal Booking & Catatan Acara:' : 'Catatan Khusus:'}</span>
+              </div>
+              <p className="font-medium text-xs leading-relaxed">{order.customerNotes}</p>
             </div>
           )}
         </div>
