@@ -35,7 +35,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     name: 'Dimsum Ayam Original Mamifayy',
     category: 'Klasik',
     description: 'Dimsum olahan daging ayam asli padat dan juicy, disajikan dengan saus cocolan asam manis pedas.',
-    image: '/images/products/dimsum-ayam.jpg',
+    image: '/images/products/dimsum-ayam-real.jpg',
     portions: [
       { pcs: 4, price: 16000 },
       { pcs: 6, price: 23000 },
