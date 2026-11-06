@@ -656,14 +656,21 @@ export const db = {
   // Products
   async getProducts(): Promise<Product[]> {
     if (this.isUsingSupabase()) {
-      const supabase = getSupabaseAdminClient()!;
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .order('id');
+      try {
+        const supabase = getSupabaseAdminClient()!;
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .order('id');
 
-      if (!error && data && data.length > 0) {
-        return data.map(mapProductFromRow);
+        if (!error && data && data.length > 0) {
+          return data.map(mapProductFromRow);
+        }
+        if (error && (error.code === 'PGRST205' || error.message?.includes('not find the table'))) {
+          globalThis.__SUPABASE_TABLES_AVAILABLE__ = false;
+        }
+      } catch (err) {
+        globalThis.__SUPABASE_TABLES_AVAILABLE__ = false;
       }
     }
     return ensureDb().products;
@@ -671,27 +678,41 @@ export const db = {
 
   async updateProduct(updated: Partial<Product> & { id: string }): Promise<Product | null> {
     if (this.isUsingSupabase()) {
-      const supabase = getSupabaseAdminClient()!;
-      const payload: Record<string, any> = { updated_at: new Date().toISOString() };
-      if (updated.name !== undefined) payload.name = updated.name;
-      if (updated.category !== undefined) payload.category = updated.category;
-      if (updated.description !== undefined) payload.description = updated.description;
-      if (updated.image !== undefined) payload.image = updated.image;
-      if (updated.portions !== undefined) payload.portions = updated.portions;
-      if (updated.allowedToppings !== undefined) payload.allowed_toppings = updated.allowedToppings;
-      if (updated.isAvailable !== undefined) payload.is_available = updated.isAvailable;
+      try {
+        const supabase = getSupabaseAdminClient()!;
+        const payload: Record<string, any> = { updated_at: new Date().toISOString() };
+        if (updated.name !== undefined) payload.name = updated.name;
+        if (updated.category !== undefined) payload.category = updated.category;
+        if (updated.description !== undefined) payload.description = updated.description;
+        if (updated.image !== undefined) payload.image = updated.image;
+        if (updated.portions !== undefined) payload.portions = updated.portions;
+        if (updated.allowedToppings !== undefined) payload.allowed_toppings = updated.allowedToppings;
+        if (updated.isAvailable !== undefined) payload.is_available = updated.isAvailable;
 
-      const { data, error } = await supabase
-        .from('products')
-        .update(payload)
-        .eq('id', updated.id)
-        .select()
-        .single();
+        const { data, error } = await supabase
+          .from('products')
+          .update(payload)
+          .eq('id', updated.id)
+          .select()
+          .maybeSingle();
 
-      if (!error && data) {
-        return mapProductFromRow(data);
+        if (!error && data) {
+          // Also mirror to local storage
+          const localData = ensureDb();
+          const idx = localData.products.findIndex((p) => p.id === updated.id);
+          if (idx !== -1) {
+            localData.products[idx] = { ...localData.products[idx], ...updated };
+            saveDb(localData);
+          }
+          return mapProductFromRow(data);
+        }
+        if (error && (error.code === 'PGRST205' || error.message?.includes('not find the table'))) {
+          globalThis.__SUPABASE_TABLES_AVAILABLE__ = false;
+        }
+      } catch (err) {
+        console.warn('Supabase updateProduct failed, falling back to local:', err);
+        globalThis.__SUPABASE_TABLES_AVAILABLE__ = false;
       }
-      return null;
     }
 
     const data = ensureDb();
@@ -996,16 +1017,22 @@ export const db = {
   // Customers CRM
   async getCustomers(): Promise<Customer[]> {
     if (this.isUsingSupabase()) {
-      const supabase = getSupabaseAdminClient()!;
-      const { data, error } = await supabase
-        .from('customers')
-        .select('*')
-        .order('created_at', { ascending: false });
+      try {
+        const supabase = getSupabaseAdminClient()!;
+        const { data, error } = await supabase
+          .from('customers')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-      if (!error && data) {
-        return data.map(mapCustomerFromRow);
+        if (!error && data) {
+          return data.map(mapCustomerFromRow);
+        }
+        if (error && (error.code === 'PGRST205' || error.message?.includes('not find the table'))) {
+          globalThis.__SUPABASE_TABLES_AVAILABLE__ = false;
+        }
+      } catch (err) {
+        globalThis.__SUPABASE_TABLES_AVAILABLE__ = false;
       }
-      console.error('Supabase getCustomers error:', error);
     }
 
     const data = ensureDb();
@@ -1025,6 +1052,68 @@ export const db = {
 
       return { ...c, points: c.points ?? 0, tag };
     });
+  },
+
+  async createCustomer(custData: { name: string; phone: string; address?: string; notes?: string }): Promise<Customer> {
+    const id = `cust-${Date.now()}`;
+    const cleanPhone = custData.phone.replace(/\D/g, '');
+    const nowIso = new Date().toISOString();
+    const newCust: Customer = {
+      id,
+      name: custData.name.trim(),
+      phone: cleanPhone,
+      address: custData.address?.trim() || '',
+      notes: custData.notes?.trim() || '',
+      points: 10,
+      redeemedRewards: [],
+      totalOrders: 0,
+      totalSpent: 0,
+      lastOrderDate: nowIso,
+      favoriteItems: [],
+      tag: 'baru',
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+
+    if (this.isUsingSupabase()) {
+      try {
+        const supabase = getSupabaseAdminClient()!;
+        const { data, error } = await supabase
+          .from('customers')
+          .insert({
+            id: newCust.id,
+            name: newCust.name,
+            phone: newCust.phone,
+            address: newCust.address,
+            notes: newCust.notes,
+            points: newCust.points,
+            redeemed_rewards: newCust.redeemedRewards,
+            total_orders: newCust.totalOrders,
+            total_spent: newCust.totalSpent,
+            last_order_date: newCust.lastOrderDate,
+            favorite_items: newCust.favoriteItems,
+            tag: newCust.tag,
+            created_at: newCust.createdAt,
+            updated_at: newCust.updatedAt,
+          })
+          .select()
+          .maybeSingle();
+
+        if (!error && data) {
+          const local = ensureDb();
+          local.customers.unshift(newCust);
+          saveDb(local);
+          return mapCustomerFromRow(data);
+        }
+      } catch (err) {
+        console.warn('Supabase createCustomer failed, saving locally:', err);
+      }
+    }
+
+    const data = ensureDb();
+    data.customers.unshift(newCust);
+    saveDb(data);
+    return newCust;
   },
 
   async getCustomerByPhone(rawPhone: string): Promise<Customer | undefined> {

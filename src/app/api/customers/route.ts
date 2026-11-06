@@ -22,3 +22,29 @@ export async function GET(request: Request) {
     );
   }
 }
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    if (!body.name || !body.phone) {
+      return NextResponse.json(
+        { success: false, message: 'Nama dan nomor WhatsApp wajib diisi' },
+        { status: 400 }
+      );
+    }
+
+    const customer = await db.createCustomer({
+      name: body.name,
+      phone: body.phone,
+      address: body.address,
+      notes: body.notes,
+    });
+
+    return NextResponse.json({ success: true, data: customer });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, message: error?.message || 'Gagal menambahkan data pelanggan' },
+      { status: 500 }
+    );
+  }
+}

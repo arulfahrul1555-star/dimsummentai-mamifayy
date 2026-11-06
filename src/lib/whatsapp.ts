@@ -113,7 +113,8 @@ Sampai jumpa di pesanan berikutnya ya Kak! 🥰🥢`;
 
 // 4. Template: Sapaan Promosi Pelanggan Lama (>14 Hari Belum Order)
 export function getReactivationPromoMessage(customer: Customer): string {
-  return `Halo Kak *${customer.name}*! 🥰
+  const name = customer?.name || 'Pelanggan';
+  return `Halo Kak *${name}*! 🥰
 Salam hangat dari *Dimsummentai Mamifayy*!
 
 Kangen lumernya saus mentai gurih dan keju torch khas Mamifayy? 🔥
@@ -127,8 +128,9 @@ Mau dikirimin menu favorit Kakak hari ini? Balas pesan ini untuk langsung kami s
 
 // 5. Template: Info Poin Loyalty & Voucher Diskon
 export function getPointsReminderMessage(customer: Customer): string {
-  const points = customer.points || 0;
-  return `Halo Kak *${customer.name}*! ⭐
+  const name = customer?.name || 'Pelanggan';
+  const points = customer?.points || 0;
+  return `Halo Kak *${name}*! ⭐
 Salam dari *Dimsummentai Mamifayy*!
 
 Kabar gembira! Kakak saat ini punya *${points} Poin Loyalty Mamifayy* yang siap ditukarkan! 🎉

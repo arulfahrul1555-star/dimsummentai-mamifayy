@@ -34,6 +34,10 @@ import {
   Upload,
   Camera,
   Check,
+  Volume2,
+  VolumeX,
+  X,
+  UserPlus,
 } from 'lucide-react';
 import { Order, Customer, Product, OrderStatus, PaymentStatus } from '@/types';
 import {
@@ -64,6 +68,69 @@ export default function AdminDashboardPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
+  const [secondsAgo, setSecondsAgo] = useState(0);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const prevPendingCountRef = React.useRef<number | null>(null);
+
+  // Manual Add Customer in CRM tab
+  const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
+  const [newCustName, setNewCustName] = useState('');
+  const [newCustPhone, setNewCustPhone] = useState('');
+  const [newCustAddress, setNewCustAddress] = useState('');
+  const [newCustNotes, setNewCustNotes] = useState('');
+  const [savingCustomer, setSavingCustomer] = useState(false);
+
+  // Audio chime for new incoming orders
+  const playChime = () => {
+    if (!soundEnabled) return;
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+      osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.12); // A5
+      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.5);
+    } catch (e) {}
+  };
+
+  // Image compressor helper: shrinks camera images to max 1000px, ~100KB JPEG
+  const compressImage = (file: File, maxWidth = 1000, quality = 0.82): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (readerEvent) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(readerEvent.target?.result as string);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => resolve(readerEvent.target?.result as string);
+        img.src = readerEvent.target?.result as string;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
 
   // Delivery fee inputs for pending orders: { [orderId]: number }
   const [deliveryFees, setDeliveryFees] = useState<Record<string, number>>({});
@@ -97,7 +164,14 @@ export default function AdminDashboardPage() {
         fetch('/api/menu').then((r) => r.json()),
       ]);
 
-      if (resOrders.success) setOrders(resOrders.data);
+      if (resOrders.success) {
+        setOrders(resOrders.data);
+        const pendingCount = resOrders.data.filter((o: Order) => o.status === 'menunggu_konfirmasi').length;
+        if (prevPendingCountRef.current !== null && pendingCount > prevPendingCountRef.current) {
+          playChime();
+        }
+        prevPendingCountRef.current = pendingCount;
+      }
       if (resCustomers.success) setCustomers(resCustomers.data);
       if (resAnalytics.success) setAnalytics(resAnalytics.data);
       if (resMenu.success) {
@@ -107,6 +181,7 @@ export default function AdminDashboardPage() {
           setPosPortion(resMenu.data.products[0].portions[0]?.pcs || 6);
         }
       }
+      setLastSyncTime(new Date());
     } catch (err) {
       console.error('Error fetching admin data', err);
     } finally {
@@ -117,10 +192,17 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     fetchData();
-    // Auto refresh every 10s to catch new customer orders
-    const interval = setInterval(fetchData, 10000);
+    // Fast Real-Time polling every 3.5s for instant order & omzet updates
+    const interval = setInterval(fetchData, 3500);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const secTimer = setInterval(() => {
+      setSecondsAgo(Math.floor((Date.now() - lastSyncTime.getTime()) / 1000));
+    }, 1000);
+    return () => clearInterval(secTimer);
+  }, [lastSyncTime]);
 
   const handleManualFeeChange = (orderId: string, val: number) => {
     setDeliveryFees((prev) => ({ ...prev, [orderId]: val }));
@@ -134,6 +216,20 @@ export default function AdminDashboardPage() {
           ? deliveryFees[order.id]
           : order.deliveryFee
         : 0;
+
+    // Optimistic UI update for instant feedback
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === order.id
+          ? {
+              ...o,
+              status: 'disetujui' as OrderStatus,
+              deliveryFee: feeToSet,
+              total: o.itemsTotal + feeToSet,
+            }
+          : o
+      )
+    );
 
     try {
       const res = await fetch(`/api/orders/${order.id}`, {
@@ -158,9 +254,12 @@ export default function AdminDashboardPage() {
         if (confirm(`Pesanan #${order.orderNumber} DISETUJUI! Mau langsung kirim rincian tagihan ke WhatsApp Kak ${order.customerName}?`)) {
           window.open(waUrl, '_blank');
         }
+      } else {
+        fetchData();
       }
     } catch (err) {
       alert('Gagal menyetujui pesanan');
+      fetchData();
     }
   };
 
@@ -168,6 +267,11 @@ export default function AdminDashboardPage() {
   const handleRejectOrder = async (order: Order) => {
     const reason = prompt('Alasan penolakan / pembatalan pesanan (misal: stok hari ini habis):', 'Mohon maaf stok varian ini sudah habis untuk hari ini Kak.');
     if (reason === null) return;
+
+    // Optimistic UI update
+    setOrders((prev) =>
+      prev.map((o) => (o.id === order.id ? { ...o, status: 'dibatalkan' as OrderStatus, adminNotes: reason } : o))
+    );
 
     try {
       await fetch(`/api/orders/${order.id}`, {
@@ -181,11 +285,17 @@ export default function AdminDashboardPage() {
       fetchData();
     } catch (err) {
       alert('Gagal membatalkan pesanan');
+      fetchData();
     }
   };
 
   // 3. Update Order Status in Operations
   const handleUpdateStatus = async (order: Order, nextStatus: OrderStatus) => {
+    // Optimistic UI update
+    setOrders((prev) =>
+      prev.map((o) => (o.id === order.id ? { ...o, status: nextStatus } : o))
+    );
+
     try {
       const res = await fetch(`/api/orders/${order.id}`, {
         method: 'PATCH',
@@ -210,15 +320,23 @@ export default function AdminDashboardPage() {
             window.open(url, '_blank');
           }
         }
+      } else {
+        fetchData();
       }
     } catch (err) {
       alert('Gagal update status pesanan');
+      fetchData();
     }
   };
 
   // 4. Toggle Payment Status (Lunas / Menunggu Pembayaran)
   const handleTogglePayment = async (order: Order) => {
     const nextStatus: PaymentStatus = order.paymentStatus === 'lunas' ? 'menunggu_pembayaran' : 'lunas';
+    // Optimistic UI update
+    setOrders((prev) =>
+      prev.map((o) => (o.id === order.id ? { ...o, paymentStatus: nextStatus } : o))
+    );
+
     try {
       await fetch(`/api/orders/${order.id}`, {
         method: 'PATCH',
@@ -228,6 +346,7 @@ export default function AdminDashboardPage() {
       fetchData();
     } catch (err) {
       alert('Gagal mengubah status pembayaran');
+      fetchData();
     }
   };
 
@@ -307,6 +426,10 @@ export default function AdminDashboardPage() {
   const handleUpdateProductImage = async (productId: string, imageSrc: string) => {
     setImageSaveLoading(productId);
     setImageSaveSuccess(null);
+    // Optimistic local update so preview changes instantly
+    setProducts((prev) =>
+      prev.map((p) => (p.id === productId ? { ...p, image: imageSrc } : p))
+    );
     try {
       const res = await fetch('/api/menu', {
         method: 'PUT',
@@ -315,29 +438,75 @@ export default function AdminDashboardPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setImageSaveSuccess(`Foto untuk ${data.data.name} berhasil diperbarui!`);
+        setImageSaveSuccess(`Foto produk berhasil diperbarui secara permanen!`);
         fetchData();
       } else {
         alert(data.message || 'Gagal mengubah foto');
+        fetchData();
       }
     } catch {
       alert('Kendala jaringan saat menyimpan foto');
+      fetchData();
     } finally {
       setImageSaveLoading(null);
     }
   };
 
-  const handleFileSelect = (productId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (productId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      if (base64) {
-        handleUpdateProductImage(productId, base64);
+    try {
+      setImageSaveLoading(productId);
+      // Compress phone camera photos from 5MB+ down to ~90KB JPEG to prevent network timeout & 413 error
+      const compressedBase64 = await compressImage(file, 900, 0.82);
+      await handleUpdateProductImage(productId, compressedBase64);
+    } catch (err) {
+      alert('Gagal memproses file foto');
+      setImageSaveLoading(null);
+    }
+  };
+
+  const handleSaveNewCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCustName.trim()) {
+      alert('Nama pelanggan wajib diisi');
+      return;
+    }
+    let phoneFormatted = newCustPhone.trim().replace(/[^0-9]/g, '');
+    if (phoneFormatted.startsWith('0')) {
+      phoneFormatted = '62' + phoneFormatted.slice(1);
+    }
+    setSavingCustomer(true);
+    try {
+      const res = await fetch('/api/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newCustName.trim(),
+          phone: phoneFormatted,
+          address: newCustAddress.trim(),
+          notes: newCustNotes.trim(),
+          tag: 'baru',
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCustomers((prev) => [data.data, ...prev]);
+        setIsAddCustomerOpen(false);
+        setNewCustName('');
+        setNewCustPhone('');
+        setNewCustAddress('');
+        setNewCustNotes('');
+        alert('Pelanggan berhasil ditambahkan ke database CRM!');
+        fetchData();
+      } else {
+        alert(data.message || 'Gagal menambahkan pelanggan');
       }
-    };
-    reader.readAsDataURL(file);
+    } catch {
+      alert('Kendala jaringan saat menyimpan pelanggan');
+    } finally {
+      setSavingCustomer(false);
+    }
   };
 
   const pendingOrders = orders.filter((o) => o.status === 'menunggu_konfirmasi');
@@ -379,13 +548,40 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Real-time pulse indicator */}
+            <div className="flex items-center gap-1.5 bg-blue-900/80 border border-blue-600/70 px-2.5 py-1.5 rounded-xl text-[11px] text-blue-100 font-medium">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="font-bold text-white hidden sm:inline">Live Real-Time</span>
+              <span className="text-blue-300">({secondsAgo}d)</span>
+            </div>
+
+            {/* Sound notification toggle */}
+            <button
+              onClick={() => {
+                const nextState = !soundEnabled;
+                setSoundEnabled(nextState);
+                if (nextState) playChime();
+              }}
+              className={`p-2 rounded-xl transition ${
+                soundEnabled
+                  ? 'bg-blue-700 hover:bg-blue-600 text-amber-300'
+                  : 'bg-blue-950/60 text-slate-400 hover:text-white'
+              }`}
+              title={soundEnabled ? 'Notifikasi Suara Aktif (Klik untuk mute)' : 'Notifikasi Suara Senyap'}
+            >
+              {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            </button>
+
             <button
               onClick={() => {
                 setRefreshing(true);
                 fetchData();
               }}
               className="p-2 rounded-xl bg-blue-700 hover:bg-blue-600 text-blue-100 hover:text-white transition"
-              title="Refresh Data"
+              title="Refresh Data Sekarang"
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
@@ -904,52 +1100,121 @@ export default function AdminDashboardPage() {
             {/* ======================================================== */}
             {activeTab === 'crm' && (
               <div className="space-y-4">
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
-                  <div>
-                    <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                      <Users className="w-5 h-5 text-blue-600" />
-                      <span>Database Pelanggan & CRM Mamifayy</span>
-                    </h2>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Otomatis mencatat pelanggan dari setiap transaksi. Gunakan untuk follow-up dan promo akhir pekan.
-                    </p>
+                {/* Header & Action Bar */}
+                <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                        <Users className="w-5 h-5 text-blue-600" />
+                        <span>Database Pelanggan & CRM Mamifayy</span>
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Otomatis mencatat riwayat transaksi, poin loyalty, dan menu favorit pelanggan.
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => setIsAddCustomerOpen(true)}
+                      className="inline-flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-sm"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      <span>+ Tambah Pelanggan Baru</span>
+                    </button>
                   </div>
 
-                  {/* Filter Tags */}
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        placeholder="Cari nama / nomor WA..."
-                        value={crmSearch}
-                        onChange={(e) => setCrmSearch(e.target.value)}
-                        className="text-xs pl-8 pr-3 py-1.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
+                  {/* Search Bar - Full Width on Mobile */}
+                  <div className="relative w-full">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="Cari nama atau nomor WhatsApp pelanggan..."
+                      value={crmSearch}
+                      onChange={(e) => setCrmSearch(e.target.value)}
+                      className="w-full text-xs pl-10 pr-9 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 focus:bg-white transition"
+                    />
+                    {crmSearch && (
+                      <button
+                        onClick={() => setCrmSearch('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                        title="Hapus pencarian"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
 
-                    <div className="flex gap-1">
-                      {(['all', 'baru', 'loyal', 'lama_tidak_order'] as const).map((tag) => (
-                        <button
-                          key={tag}
-                          onClick={() => setCrmTagFilter(tag)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
-                            crmTagFilter === tag
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  {/* Horizontal Scroll Filter Tabs for Mobile & Desktop */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none -mx-1 px-1">
+                    {(
+                      [
+                        { id: 'all', label: 'Semua', count: customers.length },
+                        {
+                          id: 'baru',
+                          label: 'Pelanggan Baru',
+                          count: customers.filter((c) => c.tag === 'baru').length,
+                        },
+                        {
+                          id: 'loyal',
+                          label: 'Loyal / VIP ⭐',
+                          count: customers.filter((c) => c.tag === 'loyal').length,
+                        },
+                        {
+                          id: 'lama_tidak_order',
+                          label: '>14 Hari Belum Order ⚠️',
+                          count: customers.filter((c) => c.tag === 'lama_tidak_order').length,
+                        },
+                      ] as const
+                    ).map((tab) => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setCrmTagFilter(tab.id as any)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
+                          crmTagFilter === tab.id
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        <span>{tab.label}</span>
+                        <span
+                          className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                            crmTagFilter === tab.id
+                              ? 'bg-blue-800 text-white'
+                              : 'bg-slate-200 text-slate-600'
                           }`}
                         >
-                          {tag === 'all' && 'Semua'}
-                          {tag === 'baru' && 'Baru'}
-                          {tag === 'loyal' && 'Loyal / VIP ⭐'}
-                          {tag === 'lama_tidak_order' && '>14 Hari Belum Order ⚠️'}
-                        </button>
-                      ))}
-                    </div>
+                          {tab.count}
+                        </span>
+                      </button>
+                    ))}
                   </div>
                 </div>
 
-                {/* Customer Cards */}
+                {/* Empty State */}
+                {filteredCustomers.length === 0 && (
+                  <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500 text-xs">
+                    <Users className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                    <p className="font-bold text-slate-700 text-sm mb-1">
+                      Tidak ada data pelanggan yang sesuai
+                    </p>
+                    <p className="text-slate-400 mb-3">
+                      Coba ganti kata kunci pencarian atau ubah filter kategori.
+                    </p>
+                    {(crmSearch || crmTagFilter !== 'all') && (
+                      <button
+                        onClick={() => {
+                          setCrmSearch('');
+                          setCrmTagFilter('all');
+                        }}
+                        className="bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold px-3 py-1.5 rounded-xl transition inline-flex items-center gap-1"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        <span>Reset Filter</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Customer Cards Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredCustomers.map((cust) => {
                     const promoMessage = getReactivationPromoMessage(cust);
@@ -960,13 +1225,15 @@ export default function AdminDashboardPage() {
                     return (
                       <div
                         key={cust.id}
-                        className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex flex-col justify-between space-y-3"
+                        className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex flex-col justify-between space-y-3 hover:border-blue-200 transition"
                       >
                         <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <h3 className="font-extrabold text-slate-900 text-sm">{cust.name}</h3>
+                          <div className="flex items-center justify-between mb-1 gap-2">
+                            <h3 className="font-extrabold text-slate-900 text-sm truncate">
+                              {cust.name}
+                            </h3>
                             <span
-                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
                                 cust.tag === 'loyal'
                                   ? 'bg-amber-100 text-amber-800 border border-amber-300'
                                   : cust.tag === 'lama_tidak_order'
@@ -974,21 +1241,21 @@ export default function AdminDashboardPage() {
                                   : 'bg-blue-100 text-blue-800 border border-blue-300'
                               }`}
                             >
-                              {cust.tag === 'loyal' && 'Pelanggan Loyal ⭐'}
-                              {cust.tag === 'lama_tidak_order' && 'Lama Tidak Order ⚠️'}
-                              {cust.tag === 'baru' && 'Pelanggan Baru'}
+                              {cust.tag === 'loyal' && 'Loyal ⭐'}
+                              {cust.tag === 'lama_tidak_order' && '>14 Hari ⚠️'}
+                              {cust.tag === 'baru' && 'Baru'}
                             </span>
                           </div>
 
                           {/* Points Loyalty Badge */}
-                          <div className="flex items-center gap-1.5 mb-2">
+                          <div className="flex items-center gap-1.5 mb-2 flex-wrap">
                             <span className="bg-amber-50 text-amber-900 border border-amber-200 font-extrabold text-[11px] px-2 py-0.5 rounded-lg flex items-center gap-1">
                               <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
-                              <span>{cust.points ?? 0} Poin Loyalty</span>
+                              <span>{cust.points ?? 0} Poin</span>
                             </span>
                             {(cust.points || 0) >= 10 ? (
                               <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-1.5 py-0.5 rounded">
-                                Diskon 15K Ready 🎉
+                                Voucher Diskon 15K Ready 🎉
                               </span>
                             ) : (cust.points || 0) >= 5 ? (
                               <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-1.5 py-0.5 rounded">
@@ -1001,6 +1268,7 @@ export default function AdminDashboardPage() {
                             <a
                               href={`https://wa.me/${cust.phone}`}
                               target="_blank"
+                              rel="noopener noreferrer"
                               className="text-xs text-emerald-700 font-semibold hover:underline flex items-center gap-1 mb-2"
                             >
                               <Phone className="w-3 h-3" />
@@ -1019,30 +1287,39 @@ export default function AdminDashboardPage() {
                           <div className="bg-slate-50 p-2.5 rounded-xl text-xs space-y-1 border border-slate-100">
                             <div className="flex justify-between">
                               <span className="text-slate-500">Total Transaksi:</span>
-                              <span className="font-bold text-slate-800">{cust.totalOrders}x Order</span>
+                              <span className="font-bold text-slate-800">
+                                {cust.totalOrders ?? 0}x Order
+                              </span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-slate-500">Total Belanja:</span>
                               <span className="font-bold text-blue-700">
-                                {formatRupiah(cust.totalSpent)}
+                                {formatRupiah(cust.totalSpent ?? 0)}
                               </span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-slate-500">Order Terakhir:</span>
                               <span className="text-slate-600">
-                                {new Date(cust.lastOrderDate).toLocaleDateString('id-ID')}
+                                {cust.lastOrderDate
+                                  ? new Date(cust.lastOrderDate).toLocaleDateString('id-ID', {
+                                      day: 'numeric',
+                                      month: 'short',
+                                      year: 'numeric',
+                                    })
+                                  : 'Belum order'}
                               </span>
                             </div>
                           </div>
 
-                          {cust.favoriteItems.length > 0 && (
+                          {/* Safe Menu Favorit rendering (prevents undefined crash on mobile) */}
+                          {(cust.favoriteItems || []).length > 0 && (
                             <div className="mt-2 text-[11px] text-slate-500">
                               <span className="font-semibold block mb-0.5">Menu Favorit:</span>
                               <div className="flex flex-wrap gap-1">
-                                {cust.favoriteItems.map((fav, i) => (
+                                {(cust.favoriteItems || []).map((fav, i) => (
                                   <span
                                     key={i}
-                                    className="bg-blue-50 text-blue-700 text-[10px] px-1.5 py-0.5 rounded"
+                                    className="bg-blue-50 text-blue-700 text-[10px] px-1.5 py-0.5 rounded font-medium"
                                   >
                                     {fav}
                                   </span>
@@ -1059,7 +1336,7 @@ export default function AdminDashboardPage() {
                               href={waPointsUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="w-full bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold py-1.5 rounded-xl transition flex items-center justify-center gap-1.5 shadow-xs active:scale-95"
+                              className="w-full bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold py-2 rounded-xl transition flex items-center justify-center gap-1.5 shadow-xs active:scale-95"
                             >
                               <Gift className="w-3.5 h-3.5" />
                               <span>Ingatkan Tukar Voucher ({cust.points} Poin)</span>
@@ -1084,6 +1361,109 @@ export default function AdminDashboardPage() {
                     );
                   })}
                 </div>
+
+                {/* Modal: Tambah Pelanggan Baru Manual */}
+                {isAddCustomerOpen && (
+                  <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                      <div className="bg-blue-800 text-white p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <UserPlus className="w-5 h-5 text-sky-300" />
+                          <h3 className="font-extrabold text-sm">Tambah Pelanggan Baru ke CRM</h3>
+                        </div>
+                        <button
+                          onClick={() => setIsAddCustomerOpen(false)}
+                          className="p-1 rounded-lg hover:bg-blue-700 text-white/80 hover:text-white transition"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <form onSubmit={handleSaveNewCustomer} className="p-4 space-y-3">
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">
+                            Nama Pelanggan <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Contoh: Kak Dinda"
+                            value={newCustName}
+                            onChange={(e) => setNewCustName(e.target.value)}
+                            className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">
+                            Nomor WhatsApp <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="tel"
+                            required
+                            placeholder="08123456789 atau 628123456789"
+                            value={newCustPhone}
+                            onChange={(e) => setNewCustPhone(e.target.value)}
+                            className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <p className="text-[10px] text-slate-400 mt-0.5">
+                            Format otomatis dikonversi ke kode 62 untuk WhatsApp.
+                          </p>
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">
+                            Alamat Pengiriman (Opsional)
+                          </label>
+                          <textarea
+                            rows={2}
+                            placeholder="Alamat rumah / patokan kurir"
+                            value={newCustAddress}
+                            onChange={(e) => setNewCustAddress(e.target.value)}
+                            className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">
+                            Catatan Khusus (Opsional)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Misal: Suka mentai pedas gurih"
+                            value={newCustNotes}
+                            onChange={(e) => setNewCustNotes(e.target.value)}
+                            className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+
+                        <div className="pt-2 flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setIsAddCustomerOpen(false)}
+                            className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2.5 rounded-xl transition"
+                          >
+                            Batal
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={savingCustomer}
+                            className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold text-xs py-2.5 rounded-xl transition shadow-md flex items-center justify-center gap-1.5"
+                          >
+                            {savingCustomer ? (
+                              <span>Menyimpan...</span>
+                            ) : (
+                              <>
+                                <Check className="w-4 h-4" />
+                                <span>Simpan Pelanggan</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1467,29 +1847,81 @@ export default function AdminDashboardPage() {
                         {/* Image changer tools */}
                         <div className="pt-3 border-t border-slate-100 space-y-3">
                           <div>
-                            <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                              1. Upload Foto Langsung dari Laptop / HP:
+                            <label className="text-[11px] font-bold text-slate-700 block mb-1.5">
+                              1. Upload Foto Baru (Otomatis Dikonversi & Ringan):
                             </label>
-                            <label className="cursor-pointer inline-flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs px-3.5 py-2 rounded-xl border border-blue-200 transition active:scale-95">
-                              <Upload className="w-3.5 h-3.5" />
-                              <span>Pilih File Foto Baru (JPG / PNG)</span>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) => handleFileSelect(p.id, e)}
-                              />
-                            </label>
+                            <div className="flex flex-wrap gap-2">
+                              {/* File Gallery Picker */}
+                              <label className="cursor-pointer inline-flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs px-3 py-2 rounded-xl border border-blue-200 transition active:scale-95 shadow-xs">
+                                <Upload className="w-3.5 h-3.5" />
+                                <span>Pilih dari Galeri / File</span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => handleFileSelect(p.id, e)}
+                                />
+                              </label>
+
+                              {/* Direct Camera Capture for Mobile HP */}
+                              <label className="cursor-pointer inline-flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs px-3 py-2 rounded-xl border border-emerald-200 transition active:scale-95 shadow-xs">
+                                <Camera className="w-3.5 h-3.5" />
+                                <span>Foto dari Kamera HP</span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  capture="environment"
+                                  className="hidden"
+                                  onChange={(e) => handleFileSelect(p.id, e)}
+                                />
+                              </label>
+                            </div>
+
                             {imageSaveLoading === p.id && (
-                              <span className="text-xs text-blue-600 font-bold ml-2 animate-pulse">
-                                Mengunggah foto...
-                              </span>
+                              <p className="text-xs text-blue-600 font-bold mt-1.5 animate-pulse flex items-center gap-1">
+                                <RefreshCw className="w-3 h-3 animate-spin" />
+                                <span>Mengompres & menyimpan foto baru...</span>
+                              </p>
                             )}
+                          </div>
+
+                          {/* Quick Preset Selector */}
+                          <div>
+                            <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                              2. Atau Pilih Foto Cepat (Preset Bawaan):
+                            </label>
+                            <div className="flex flex-wrap gap-1">
+                              {[
+                                { label: 'Mentai', src: '/images/products/dimsum-mentai.jpg' },
+                                { label: 'Ayam Ori', src: '/images/products/dimsum-ayam.jpg' },
+                                { label: 'Mix Platter', src: '/images/products/mix-platter.jpg' },
+                                { label: 'Pangsit Crispy', src: '/images/products/pangsit-goreng.jpg' },
+                                { label: 'Tart 1', src: '/images/products/tart-1.jpg' },
+                                { label: 'Tart 2', src: '/images/products/tart-2.jpg' },
+                                { label: 'Tart 3', src: '/images/products/tart-3.jpg' },
+                                { label: 'Tart 4', src: '/images/products/tart-4.jpg' },
+                                { label: 'Tart 5', src: '/images/products/tart-5.jpg' },
+                                { label: 'Tart Mix L', src: '/images/products/tart-7.jpg' },
+                              ].map((preset) => (
+                                <button
+                                  key={preset.src}
+                                  type="button"
+                                  onClick={() => handleUpdateProductImage(p.id, preset.src)}
+                                  className={`text-[10px] font-semibold px-2 py-1 rounded-lg border transition ${
+                                    p.image === preset.src
+                                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                                  }`}
+                                >
+                                  {preset.label}
+                                </button>
+                              ))}
+                            </div>
                           </div>
 
                           <div>
                             <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                              2. Atau Masukkan URL / Path Gambar:
+                              3. Atau Masukkan URL Gambar:
                             </label>
                             <div className="flex gap-2">
                               <input
