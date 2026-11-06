@@ -11,8 +11,21 @@ export interface DatabaseSchema {
   customers: Customer[];
 }
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const DB_PATH = path.join(DATA_DIR, 'db.json');
+declare global {
+  var __DIMSUM_GLOBAL_DB__: DatabaseSchema | undefined;
+  var __SUPABASE_TABLES_AVAILABLE__: boolean | null;
+}
+
+const IS_SERVERLESS = Boolean(
+  process.env.VERCEL ||
+  process.env.AWS_LAMBDA_FUNCTION_NAME ||
+  (process.env.NODE_ENV === 'production' && !process.env.PORT)
+);
+
+const BUNDLED_DATA_DIR = path.join(process.cwd(), 'data');
+const BUNDLED_DB_PATH = path.join(BUNDLED_DATA_DIR, 'db.json');
+const WRITABLE_DATA_DIR = IS_SERVERLESS ? '/tmp/dimsum_data' : BUNDLED_DATA_DIR;
+const WRITABLE_DB_PATH = IS_SERVERLESS ? path.join(WRITABLE_DATA_DIR, 'db.json') : BUNDLED_DB_PATH;
 
 // Initial seed orders & customers with Loyalty Points for local fallback
 const SEED_CUSTOMERS: Customer[] = [
@@ -183,25 +196,48 @@ const SEED_ORDERS: Order[] = [
   },
 ];
 
-// Helper: Ensure local JSON database exists
+// Helper: Ensure local JSON database exists (with /tmp serverless support & RAM cache)
 function ensureDb(): DatabaseSchema {
+  // 1. Check in-memory global cache first
+  if (globalThis.__DIMSUM_GLOBAL_DB__) {
+    return globalThis.__DIMSUM_GLOBAL_DB__;
+  }
+
   try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+    if (!fs.existsSync(WRITABLE_DATA_DIR)) {
+      fs.mkdirSync(WRITABLE_DATA_DIR, { recursive: true });
     }
 
-    if (!fs.existsSync(DB_PATH)) {
+    if (!fs.existsSync(WRITABLE_DB_PATH)) {
+      // If running on Vercel and writable db doesn't exist yet, copy from bundled db.json
+      if (fs.existsSync(BUNDLED_DB_PATH)) {
+        try {
+          const bundledContent = fs.readFileSync(BUNDLED_DB_PATH, 'utf-8');
+          fs.writeFileSync(WRITABLE_DB_PATH, bundledContent, 'utf-8');
+          const parsed = JSON.parse(bundledContent);
+          globalThis.__DIMSUM_GLOBAL_DB__ = parsed;
+          return parsed;
+        } catch (copyErr) {
+          console.warn('Failed to copy bundled db to /tmp, falling back to seed:', copyErr);
+        }
+      }
+
       const initialDb: DatabaseSchema = {
         settings: INITIAL_STORE_SETTINGS,
         products: INITIAL_PRODUCTS,
         orders: SEED_ORDERS,
         customers: SEED_CUSTOMERS,
       };
-      fs.writeFileSync(DB_PATH, JSON.stringify(initialDb, null, 2), 'utf-8');
+      try {
+        fs.writeFileSync(WRITABLE_DB_PATH, JSON.stringify(initialDb, null, 2), 'utf-8');
+      } catch (writeErr) {
+        console.warn('Unable to write initial DB file:', writeErr);
+      }
+      globalThis.__DIMSUM_GLOBAL_DB__ = initialDb;
       return initialDb;
     }
 
-    const raw = fs.readFileSync(DB_PATH, 'utf-8');
+    const raw = fs.readFileSync(WRITABLE_DB_PATH, 'utf-8');
     const parsed = JSON.parse(raw);
 
     let modified = false;
@@ -214,32 +250,41 @@ function ensureDb(): DatabaseSchema {
       });
     }
     if (modified) {
-      fs.writeFileSync(DB_PATH, JSON.stringify(parsed, null, 2), 'utf-8');
+      try {
+        fs.writeFileSync(WRITABLE_DB_PATH, JSON.stringify(parsed, null, 2), 'utf-8');
+      } catch {}
     }
 
+    globalThis.__DIMSUM_GLOBAL_DB__ = parsed;
     return parsed;
   } catch (err) {
     console.warn('Local file DB read/write failed, using in-memory fallback:', err);
-    return {
-      settings: INITIAL_STORE_SETTINGS,
-      products: INITIAL_PRODUCTS,
-      orders: SEED_ORDERS,
-      customers: SEED_CUSTOMERS,
-    };
+    if (!globalThis.__DIMSUM_GLOBAL_DB__) {
+      globalThis.__DIMSUM_GLOBAL_DB__ = {
+        settings: INITIAL_STORE_SETTINGS,
+        products: INITIAL_PRODUCTS,
+        orders: SEED_ORDERS,
+        customers: SEED_CUSTOMERS,
+      };
+    }
+    return globalThis.__DIMSUM_GLOBAL_DB__;
   }
 }
 
 // Helper: Save local JSON database
 function saveDb(data: DatabaseSchema): void {
+  // Always update in-memory global cache immediately
+  globalThis.__DIMSUM_GLOBAL_DB__ = data;
+
   try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+    if (!fs.existsSync(WRITABLE_DATA_DIR)) {
+      fs.mkdirSync(WRITABLE_DATA_DIR, { recursive: true });
     }
-    const tempPath = `${DB_PATH}.tmp`;
+    const tempPath = `${WRITABLE_DB_PATH}.tmp`;
     fs.writeFileSync(tempPath, JSON.stringify(data, null, 2), 'utf-8');
-    fs.renameSync(tempPath, DB_PATH);
+    fs.renameSync(tempPath, WRITABLE_DB_PATH);
   } catch (err) {
-    console.warn('Warning: Unable to save to local db.json (running in serverless read-only mode). Configure Supabase environment variables for persistent storage.');
+    console.warn('Warning: Unable to save to local db file (kept in memory):', err);
   }
 }
 
@@ -353,6 +398,9 @@ function mapSettingsFromRow(row: any): StoreSettings {
 export const db = {
   // Check backend type
   isUsingSupabase(): boolean {
+    if (globalThis.__SUPABASE_TABLES_AVAILABLE__ === false) {
+      return false;
+    }
     return isSupabaseConfigured();
   },
 
@@ -657,16 +705,22 @@ export const db = {
   // Orders
   async getOrders(): Promise<Order[]> {
     if (this.isUsingSupabase()) {
-      const supabase = getSupabaseAdminClient()!;
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .order('created_at', { ascending: false });
+      try {
+        const supabase = getSupabaseAdminClient()!;
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-      if (!error && data) {
-        return data.map(mapOrderFromRow);
+        if (!error && data) {
+          return data.map(mapOrderFromRow);
+        }
+        if (error && (error.code === 'PGRST205' || error.message?.includes('not find the table'))) {
+          globalThis.__SUPABASE_TABLES_AVAILABLE__ = false;
+        }
+      } catch (err) {
+        globalThis.__SUPABASE_TABLES_AVAILABLE__ = false;
       }
-      console.error('Supabase getOrders error:', error);
     }
 
     const data = ensureDb();
@@ -677,15 +731,22 @@ export const db = {
 
   async getOrderById(id: string): Promise<Order | undefined> {
     if (this.isUsingSupabase()) {
-      const supabase = getSupabaseAdminClient()!;
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .or(`id.eq.${id},order_number.eq.${id}`)
-        .maybeSingle();
+      try {
+        const supabase = getSupabaseAdminClient()!;
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*')
+          .or(`id.eq.${id},order_number.eq.${id}`)
+          .maybeSingle();
 
-      if (!error && data) {
-        return mapOrderFromRow(data);
+        if (!error && data) {
+          return mapOrderFromRow(data);
+        }
+        if (error && (error.code === 'PGRST205' || error.message?.includes('not find the table'))) {
+          globalThis.__SUPABASE_TABLES_AVAILABLE__ = false;
+        }
+      } catch (err) {
+        globalThis.__SUPABASE_TABLES_AVAILABLE__ = false;
       }
     }
 
@@ -701,89 +762,107 @@ export const db = {
     const nowIso = new Date().toISOString();
 
     if (this.isUsingSupabase()) {
-      const supabase = getSupabaseAdminClient()!;
-      // Count total orders today to generate sequential orderNumber
-      const { count } = await supabase
-        .from('orders')
-        .select('*', { count: 'exact', head: true });
+      try {
+        const supabase = getSupabaseAdminClient()!;
+        // Count total orders today to generate sequential orderNumber
+        const { count, error: countErr } = await supabase
+          .from('orders')
+          .select('*', { count: 'exact', head: true });
 
-      const nextNum = (count || 0) + 1;
-      const orderNumber = `MF-${dateStr}-${String(nextNum).padStart(3, '0')}`;
+        if (countErr) {
+          if (countErr.code === 'PGRST205' || countErr.message?.includes('not find the table')) {
+            globalThis.__SUPABASE_TABLES_AVAILABLE__ = false;
+            throw countErr;
+          }
+        }
 
-      const totalAmount = Math.max(
-        0,
-        (orderData.itemsTotal || 0) - (orderData.discountAmount || 0) + (orderData.deliveryFee || 0)
-      );
+        const nextNum = (count || 0) + 1;
+        const orderNumber = `MF-${dateStr}-${String(nextNum).padStart(3, '0')}`;
 
-      const newOrder: Order = {
-        ...orderData,
-        id,
-        orderNumber,
-        discountAmount: orderData.discountAmount || 0,
-        pointsUsed: orderData.pointsUsed || 0,
-        pointsEarned,
-        totalAmount,
-        createdAt: nowIso,
-        updatedAt: nowIso,
-      };
+        const totalAmount = Math.max(
+          0,
+          (orderData.itemsTotal || 0) - (orderData.discountAmount || 0) + (orderData.deliveryFee || 0)
+        );
 
-      // 1. Insert order
-      const { error: orderInsertError } = await supabase.from('orders').insert({
-        id: newOrder.id,
-        order_number: newOrder.orderNumber,
-        customer_name: newOrder.customerName,
-        customer_phone: newOrder.customerPhone,
-        customer_address: newOrder.customerAddress || '',
-        customer_notes: newOrder.customerNotes || '',
-        delivery_type: newOrder.deliveryType,
-        delivery_fee: newOrder.deliveryFee,
-        payment_method: newOrder.paymentMethod,
-        payment_status: newOrder.paymentStatus,
-        status: newOrder.status,
-        items: newOrder.items,
-        items_total: newOrder.itemsTotal,
-        discount_amount: newOrder.discountAmount,
-        voucher_code: newOrder.voucherCode || '',
-        points_used: newOrder.pointsUsed,
-        points_earned: newOrder.pointsEarned,
-        total_amount: newOrder.totalAmount,
-        channel: newOrder.channel,
-        admin_notes: newOrder.adminNotes || '',
-        created_at: newOrder.createdAt,
-        updated_at: newOrder.updatedAt,
-      });
+        const newOrder: Order = {
+          ...orderData,
+          id,
+          orderNumber,
+          discountAmount: orderData.discountAmount || 0,
+          pointsUsed: orderData.pointsUsed || 0,
+          pointsEarned,
+          totalAmount,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        };
 
-      if (orderInsertError) {
-        console.error('Supabase createOrder error:', orderInsertError);
-        throw new Error('Gagal menyimpan pesanan ke Supabase');
+        // 1. Insert order
+        const { error: orderInsertError } = await supabase.from('orders').insert({
+          id: newOrder.id,
+          order_number: newOrder.orderNumber,
+          customer_name: newOrder.customerName,
+          customer_phone: newOrder.customerPhone,
+          customer_address: newOrder.customerAddress || '',
+          customer_notes: newOrder.customerNotes || '',
+          delivery_type: newOrder.deliveryType,
+          delivery_fee: newOrder.deliveryFee,
+          payment_method: newOrder.paymentMethod,
+          payment_status: newOrder.paymentStatus,
+          status: newOrder.status,
+          items: newOrder.items,
+          items_total: newOrder.itemsTotal,
+          discount_amount: newOrder.discountAmount,
+          voucher_code: newOrder.voucherCode || '',
+          points_used: newOrder.pointsUsed,
+          points_earned: newOrder.pointsEarned,
+          total_amount: newOrder.totalAmount,
+          channel: newOrder.channel,
+          admin_notes: newOrder.adminNotes || '',
+          created_at: newOrder.createdAt,
+          updated_at: newOrder.updatedAt,
+        });
+
+        if (orderInsertError) {
+          console.warn('Supabase createOrder error, falling back to local storage:', orderInsertError);
+          globalThis.__SUPABASE_TABLES_AVAILABLE__ = false;
+          throw orderInsertError;
+        }
+
+        // 2. Insert order items relationally
+        if (newOrder.items && newOrder.items.length > 0) {
+          const itemRows = newOrder.items.map((item, idx) => ({
+            id: item.id || `item-${Date.now()}-${idx}`,
+            order_id: newOrder.id,
+            product_id: item.productId,
+            product_name: item.productName,
+            portion: item.portion,
+            topping: item.topping || '',
+            topping_name: item.toppingName || '',
+            unit_price: item.unitPrice,
+            quantity: item.quantity,
+            subtotal: item.subtotal,
+            notes: item.notes || '',
+            created_at: nowIso,
+          }));
+          await supabase.from('order_items').insert(itemRows);
+        }
+
+        // 3. Sync customer points & loyalty on NEW order
+        await this.syncCustomerOnNewOrder(newOrder);
+
+        // Mirror order into local memory/tmp as cache
+        const localData = ensureDb();
+        localData.orders.unshift(newOrder);
+        saveDb(localData);
+
+        return newOrder;
+      } catch (err) {
+        console.warn('Supabase createOrder failed, safely falling back to local storage:', err);
+        globalThis.__SUPABASE_TABLES_AVAILABLE__ = false;
       }
-
-      // 2. Insert order items relationally
-      if (newOrder.items && newOrder.items.length > 0) {
-        const itemRows = newOrder.items.map((item, idx) => ({
-          id: item.id || `item-${Date.now()}-${idx}`,
-          order_id: newOrder.id,
-          product_id: item.productId,
-          product_name: item.productName,
-          portion: item.portion,
-          topping: item.topping || '',
-          topping_name: item.toppingName || '',
-          unit_price: item.unitPrice,
-          quantity: item.quantity,
-          subtotal: item.subtotal,
-          notes: item.notes || '',
-          created_at: nowIso,
-        }));
-        await supabase.from('order_items').insert(itemRows);
-      }
-
-      // 3. Sync customer points & loyalty on NEW order
-      await this.syncCustomerOnNewOrder(newOrder);
-
-      return newOrder;
     }
 
-    // Local JSON fallback
+    // Local JSON fallback (uses /tmp on serverless + RAM cache)
     const data = ensureDb();
     const count = data.orders.length + 1;
     const orderNumber = `MF-${dateStr}-${String(count).padStart(3, '0')}`;
@@ -850,14 +929,20 @@ export const db = {
         .select()
         .single();
 
-      if (error || !data) {
-        console.error('Supabase updateOrder error:', error);
-        return null;
+      if (!error && data) {
+        // Sync customer changes without duplicating stats
+        await this.syncCustomerOnOrderUpdate(current, updatedOrder);
+        // Also update local mirror
+        const localData = ensureDb();
+        const localIdx = localData.orders.findIndex((o) => o.id === id || o.orderNumber === id);
+        if (localIdx !== -1) {
+          localData.orders[localIdx] = mapOrderFromRow(data);
+          saveDb(localData);
+        }
+        return mapOrderFromRow(data);
       }
-
-      // Sync customer changes without duplicating stats
-      await this.syncCustomerOnOrderUpdate(current, updatedOrder);
-      return mapOrderFromRow(data);
+      console.warn('Supabase updateOrder failed, falling back to local storage:', error);
+      globalThis.__SUPABASE_TABLES_AVAILABLE__ = false;
     }
 
     // Local JSON fallback

@@ -459,6 +459,13 @@ export default function PublicMenuPage() {
 
       const data = await res.json();
       if (data.success && data.data) {
+        // Save order to browser localStorage for instant resilient tracking display
+        try {
+          localStorage.setItem(`mamifayy_order_${data.data.id}`, JSON.stringify(data.data));
+          localStorage.setItem(`mamifayy_order_${data.data.orderNumber}`, JSON.stringify(data.data));
+          localStorage.setItem('mamifayy_latest_order', JSON.stringify(data.data));
+        } catch (e) {}
+
         // Clear cart
         setCart([]);
         setAppliedVoucher(null);

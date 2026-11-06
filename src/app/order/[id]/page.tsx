@@ -30,12 +30,32 @@ export default function OrderTrackingPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // 1. Resilient Instant Local Storage Hydration
+  useEffect(() => {
+    try {
+      const cached =
+        localStorage.getItem(`mamifayy_order_${id}`) ||
+        localStorage.getItem('mamifayy_latest_order');
+      if (cached) {
+        const parsed: Order = JSON.parse(cached);
+        if (parsed && (parsed.id === id || parsed.orderNumber === id || !id)) {
+          setOrder(parsed);
+          setLoading(false);
+        }
+      }
+    } catch (e) {}
+  }, [id]);
+
   const fetchOrder = async () => {
     try {
       const res = await fetch(`/api/orders/${id}`);
       const data = await res.json();
       if (data.success && data.data) {
         setOrder(data.data);
+        try {
+          localStorage.setItem(`mamifayy_order_${data.data.id}`, JSON.stringify(data.data));
+          localStorage.setItem(`mamifayy_order_${data.data.orderNumber}`, JSON.stringify(data.data));
+        } catch (e) {}
       }
     } catch (err) {
       console.error('Error fetching order', err);
@@ -52,7 +72,7 @@ export default function OrderTrackingPage() {
     return () => clearInterval(interval);
   }, [id]);
 
-  if (loading) {
+  if (loading && !order) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <div className="text-center">
@@ -64,19 +84,53 @@ export default function OrderTrackingPage() {
   }
 
   if (!order) {
+    const waHelpUrl = createWhatsAppUrl(
+      '6281234567890',
+      `Halo Admin Dimsummentai Mamifayy! Saya baru saja memesan via website dengan nomor/ID pesanan: *${id}*, mohon bantuannya untuk pengecekan status pesanan saya ya Kak. Terima kasih!`
+    );
+
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center max-w-md w-full">
-          <h2 className="text-lg font-bold text-slate-800 mb-2">Pesanan Tidak Ditemukan</h2>
-          <p className="text-xs text-slate-500 mb-4">
-            Nomor pesanan yang Anda cari mungkin salah atau telah kadaluarsa.
-          </p>
-          <Link
-            href="/"
-            className="inline-block bg-blue-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl"
-          >
-            Kembali ke Halaman Menu
-          </Link>
+        <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200 text-center max-w-md w-full space-y-4">
+          <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto border border-amber-200">
+            <Clock className="w-7 h-7" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 mb-1">Sedang Menghubungkan Pesanan</h2>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Data pesanan dengan kode <code className="bg-slate-100 text-blue-700 font-bold px-1.5 py-0.5 rounded text-[11px]">{id}</code> sedang disinkronkan ke server.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2 pt-2">
+            <button
+              onClick={() => {
+                setLoading(true);
+                fetchOrder();
+              }}
+              className="w-full bg-[#004AAD] hover:bg-blue-800 text-white text-xs font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-sm"
+            >
+              <RefreshCw className="w-4 h-4 animate-spin" />
+              <span>Muat Ulang Status Pesanan</span>
+            </button>
+
+            <a
+              href={waHelpUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-sm"
+            >
+              <Phone className="w-4 h-4" />
+              <span>Konfirmasi via WhatsApp Admin</span>
+            </a>
+
+            <Link
+              href="/"
+              className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-2.5 rounded-xl transition mt-1"
+            >
+              Kembali ke Halaman Menu
+            </Link>
+          </div>
         </div>
       </div>
     );

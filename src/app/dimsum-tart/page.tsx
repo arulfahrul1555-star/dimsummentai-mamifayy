@@ -256,6 +256,13 @@ export default function DimsumTartPage() {
       const resData = await res.json();
 
       if (resData.success && resData.data) {
+        // Save order to browser localStorage for instant resilient tracking display
+        try {
+          localStorage.setItem(`mamifayy_order_${resData.data.id}`, JSON.stringify(resData.data));
+          localStorage.setItem(`mamifayy_order_${resData.data.orderNumber}`, JSON.stringify(resData.data));
+          localStorage.setItem('mamifayy_latest_order', JSON.stringify(resData.data));
+        } catch (e) {}
+
         // Close modal and redirect directly to in-app live order tracking
         setSelectedProduct(null);
         router.push(`/order/${resData.data.id}`);
