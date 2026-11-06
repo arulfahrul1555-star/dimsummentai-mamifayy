@@ -121,7 +121,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     name: 'PAKET TART 5',
     category: 'Dimsum Tart',
     description: 'Mentai special cake bertingkat estetik pengganti kue ulang tahun biasa.',
-    image: '/images/products/tart-5.jpg',
+    image: '/images/products/tart-5-real.jpg',
     portions: [{ pcs: 14, price: 75000 }],
     allowedToppings: [],
     isAvailable: true,
