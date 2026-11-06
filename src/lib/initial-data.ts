@@ -111,7 +111,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     name: 'PAKET TART 4',
     category: 'Dimsum Tart',
     description: '16 pcs dimsum mentai porsi jumbo untuk perayaan bersama keluarga & teman.',
-    image: '/images/products/tart-4.jpg',
+    image: '/images/products/tart-4-real.jpg',
     portions: [{ pcs: 16, price: 80000 }],
     allowedToppings: [],
     isAvailable: true,
