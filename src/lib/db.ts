@@ -286,6 +286,15 @@ function saveDb(data: DatabaseSchema): void {
   } catch (err) {
     console.warn('Warning: Unable to save to local db file (kept in memory):', err);
   }
+
+  // Also sync to bundled db when accessible
+  if (WRITABLE_DB_PATH !== BUNDLED_DB_PATH) {
+    try {
+      if (fs.existsSync(BUNDLED_DATA_DIR)) {
+        fs.writeFileSync(BUNDLED_DB_PATH, JSON.stringify(data, null, 2), 'utf-8');
+      }
+    } catch {}
+  }
 }
 
 // In-memory OTP cache for instant local verification

@@ -410,6 +410,9 @@ export default function DimsumTartPage() {
                   <img
                     src={product.image}
                     alt={product.name}
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = '/logo-square.png';
+                    }}
                     className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-black/20"></div>
@@ -506,6 +509,9 @@ export default function DimsumTartPage() {
               <img
                 src={selectedProduct.image}
                 alt={selectedProduct.name}
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = '/logo-square.png';
+                }}
                 className="w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-black/40 to-black/20"></div>

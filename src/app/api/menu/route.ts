@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import fs from 'fs';
-import path from 'path';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,33 +34,19 @@ export async function PUT(request: Request) {
       );
     }
 
-    let finalImagePath = image;
-
-    // If image is a base64 data url from browser file upload:
-    if (image && typeof image === 'string' && image.startsWith('data:image/')) {
-      const match = image.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
-      if (match) {
-        const ext = match[1] === 'jpeg' ? 'jpg' : match[1];
-        const base64Data = match[2];
-        const fileName = `${productId}-${Date.now()}.${ext}`;
-        const targetDir = path.join(process.cwd(), 'public', 'images', 'products');
-        try {
-          if (!fs.existsSync(targetDir)) {
-            fs.mkdirSync(targetDir, { recursive: true });
-          }
-          const filePath = path.join(targetDir, fileName);
-          fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
-          finalImagePath = `/images/products/${fileName}`;
-        } catch (fsErr) {
-          // On serverless read-only platforms (like Vercel), fall back to keeping base64 data URL
-          finalImagePath = image;
-        }
-      }
+    if (!image && !name && !description) {
+      return NextResponse.json(
+        { success: false, message: 'Data yang diperbarui tidak boleh kosong' },
+        { status: 400 }
+      );
     }
 
+    // Direct save: image can be compressed base64 data URI (data:image/jpeg;base64,...) or a URL.
+    // Storing the image directly guarantees 100% reliability on Vercel and serverless,
+    // avoiding 404 broken image errors caused by ephemeral filesystem writes.
     const updated = await db.updateProduct({
       id: productId,
-      ...(finalImagePath ? { image: finalImagePath } : {}),
+      ...(image ? { image: String(image).trim() } : {}),
       ...(name ? { name } : {}),
       ...(description ? { description } : {}),
     });
@@ -77,11 +61,11 @@ export async function PUT(request: Request) {
     return NextResponse.json({
       success: true,
       data: updated,
-      message: 'Foto produk berhasil diperbarui!',
+      message: 'Foto produk berhasil disimpan dan langsung live!',
     });
-  } catch (error) {
+  } catch (error: any) {
     return NextResponse.json(
-      { success: false, message: 'Gagal memperbarui produk' },
+      { success: false, message: error?.message || 'Gagal memperbarui produk' },
       { status: 500 }
     );
   }

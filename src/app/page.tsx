@@ -709,6 +709,9 @@ export default function PublicMenuPage() {
                     <img
                       src={product.image}
                       alt={product.name}
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = '/logo-square.png';
+                      }}
                       className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
                     />
                     <div className="absolute top-3 left-3 bg-blue-900/80 backdrop-blur-sm text-white text-[11px] font-bold px-2.5 py-1 rounded-lg">
