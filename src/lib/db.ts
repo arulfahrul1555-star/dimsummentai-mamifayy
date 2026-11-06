@@ -760,27 +760,29 @@ export const db = {
   },
 
   async getOrderById(id: string): Promise<Order | undefined> {
+    if (!id) return undefined;
+    const cleanId = id.trim();
+
     if (this.isUsingSupabase()) {
       try {
-        const supabase = getSupabaseAdminClient()!;
-        const { data, error } = await supabase
-          .from('orders')
-          .select('*')
-          .or(`id.eq.${id},order_number.eq.${id}`)
-          .maybeSingle();
+        const supabase = getSupabaseAdminClient();
+        if (supabase) {
+          const { data, error } = await supabase
+            .from('orders')
+            .select('*')
+            .or(`id.eq.${cleanId},order_number.eq.${cleanId}`)
+            .maybeSingle();
 
-        if (!error && data) {
-          return mapOrderFromRow(data);
-        }
-        if (error && (error.code === 'PGRST205' || error.message?.includes('not find the table'))) {
-          globalThis.__SUPABASE_TABLES_AVAILABLE__ = false;
+          if (!error && data) {
+            return mapOrderFromRow(data);
+          }
         }
       } catch (err) {
-        globalThis.__SUPABASE_TABLES_AVAILABLE__ = false;
+        console.warn('Supabase getOrderById error:', err);
       }
     }
 
-    return ensureDb().orders.find((o) => o.id === id || o.orderNumber === id);
+    return ensureDb().orders.find((o) => o.id === cleanId || o.orderNumber === cleanId);
   },
 
   async createOrder(
@@ -961,7 +963,7 @@ export const db = {
               .update(payload)
               .or(`id.eq.${cleanId},order_number.eq.${cleanId}`)
               .select()
-              .single();
+              .maybeSingle();
 
             if (!error && data) {
               // Sync customer changes without duplicating stats
