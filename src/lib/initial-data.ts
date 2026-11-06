@@ -141,7 +141,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     name: 'MIX PLATTER LARGE',
     category: 'Dimsum Tart',
     description: '6 pcs dimsum mentai, pangsit selimut, dimsum ori 3, pangsit goreng 3.',
-    image: '/images/products/platter-large.jpg',
+    image: '/images/products/platter-large-real.jpg',
     portions: [{ pcs: 14, price: 55000 }],
     allowedToppings: [],
     isAvailable: true,
