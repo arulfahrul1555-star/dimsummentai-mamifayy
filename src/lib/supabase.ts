@@ -6,15 +6,21 @@ const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_6pvmXKQhm0Ifk1PMTi6IOw_1UhcXv7
 
 // Helper to safely read and sanitize credentials
 function getEnvConfig() {
-  const url = (
-    process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    DEFAULT_SUPABASE_URL
-  ).trim();
-  const anonKey = (
+  let url = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim();
+  let anonKey = (
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    DEFAULT_SUPABASE_ANON_KEY
+    ''
   ).trim();
+
+  // If env var is missing, placeholder, or invalid, use reliable production default
+  if (!url || !url.startsWith('https://') || url.includes('placeholder') || url.includes('your-project')) {
+    url = DEFAULT_SUPABASE_URL;
+  }
+  if (!anonKey || anonKey.length < 20 || anonKey.includes('placeholder')) {
+    anonKey = DEFAULT_SUPABASE_ANON_KEY;
+  }
+
   const serviceRoleKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
   return { url, anonKey, serviceRoleKey };
 }
