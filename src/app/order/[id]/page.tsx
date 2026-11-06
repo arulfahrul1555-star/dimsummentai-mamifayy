@@ -46,19 +46,28 @@ export default function OrderTrackingPage() {
     } catch (e) {}
   }, [id]);
 
-  const fetchOrder = async () => {
+  const fetchOrder = async (showRefreshSpinner = false) => {
+    if (showRefreshSpinner) setRefreshing(true);
+    if (!id) return;
     try {
-      const res = await fetch(`/api/orders/${id}`);
+      const res = await fetch(`/api/orders/${encodeURIComponent(id)}?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        },
+      });
       const data = await res.json();
       if (data.success && data.data) {
         setOrder(data.data);
         try {
           localStorage.setItem(`mamifayy_order_${data.data.id}`, JSON.stringify(data.data));
           localStorage.setItem(`mamifayy_order_${data.data.orderNumber}`, JSON.stringify(data.data));
+          localStorage.setItem('mamifayy_latest_order', JSON.stringify(data.data));
         } catch (e) {}
       }
     } catch (err) {
-      console.error('Error fetching order', err);
+      console.error('Error fetching order status:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -66,10 +75,30 @@ export default function OrderTrackingPage() {
   };
 
   useEffect(() => {
+    if (!id) return;
     fetchOrder();
-    // Auto polling every 8 seconds for live updates
-    const interval = setInterval(fetchOrder, 8000);
-    return () => clearInterval(interval);
+
+    // Fast polling every 2.5s for instant live status updates
+    const interval = setInterval(() => {
+      fetchOrder(false);
+    }, 2500);
+
+    // Instant refresh when user returns to this tab
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchOrder(false);
+      }
+    };
+    const handleFocus = () => fetchOrder(false);
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [id]);
 
   if (loading && !order) {
@@ -187,12 +216,21 @@ export default function OrderTrackingPage() {
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider block">
-                Status Pesanan Kamu
-              </span>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">
+                  Status Pesanan Kamu
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  <span>Live Realtime</span>
+                </span>
+              </div>
               <h2 className="text-lg font-black text-slate-900 capitalize">
                 {order.status === 'menunggu_konfirmasi' && 'Menunggu Konfirmasi Admin 🟡'}
-                {order.status === 'disetujui' && 'Pesanan Disetujui 🟢'}
+                {order.status === 'disetujui' && 'Pesanan Disetujui Admin 🟢'}
                 {order.status === 'diproses' && 'Sedang Ditorch & Disiapkan 🔥'}
                 {order.status === 'dikirim' && 'Sedang Diantar Kurir Toko 🛵💨'}
                 {order.status === 'siap_pickup' && 'Siap Diambil di Outlet 🥡'}
@@ -202,12 +240,9 @@ export default function OrderTrackingPage() {
             </div>
 
             <button
-              onClick={() => {
-                setRefreshing(true);
-                fetchOrder();
-              }}
-              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition"
-              title="Perbarui Status"
+              onClick={() => fetchOrder(true)}
+              className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition"
+              title="Perbarui Status Sekarang"
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-blue-600' : ''}`} />
             </button>
@@ -243,7 +278,7 @@ export default function OrderTrackingPage() {
               >
                 2
               </div>
-              <span className="text-[10px] font-semibold text-slate-600 mt-1">Dapur / Torch</span>
+              <span className="text-[10px] font-semibold text-slate-600 mt-1">Disetujui / Dapur</span>
             </div>
 
             {/* Step 3 */}
@@ -279,8 +314,49 @@ export default function OrderTrackingPage() {
               <p className="font-bold mb-0.5">Pesanan sedang menunggu konfirmasi admin.</p>
               <p>
                 {order.deliveryType === 'kurir_toko'
-                  ? 'Admin sedang mengecek jarak alamat pengiriman Anda untuk menghitung nominal ongkir yang pas. Halaman ini akan terupdate otomatis.'
-                  : 'Admin sedang mengonfirmasi ketersediaan porsi di outlet.'}
+                  ? 'Admin sedang mengecek jarak alamat pengiriman Anda untuk menghitung nominal ongkir yang pas. Halaman ini akan terupdate otomatis secara realtime.'
+                  : 'Admin sedang mengonfirmasi ketersediaan porsi di outlet. Halaman ini akan terupdate otomatis secara realtime.'}
+              </p>
+            </div>
+          )}
+
+          {order.status === 'disetujui' && (
+            <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-4 text-xs text-emerald-950 space-y-2.5 shadow-xs">
+              <div className="flex items-start gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-extrabold text-sm text-emerald-950">Pesanan Telah Disetujui Admin! 🎉</p>
+                  <p className="text-[11px] text-emerald-800 leading-relaxed mt-0.5">
+                    {order.deliveryType === 'kurir_toko'
+                      ? 'Admin telah menetapkan ongkir kurir toko dan pesanan masuk ke antrean dapur!'
+                      : 'Pesanan telah diterima outlet dan sedang disiapkan hangat.'}
+                  </p>
+                </div>
+              </div>
+              {order.deliveryType === 'kurir_toko' && (
+                <div className="bg-white p-3 rounded-xl border border-emerald-200 shadow-xs space-y-1">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-600">Ongkir Kurir Toko Ditetapkan:</span>
+                    <span className="font-extrabold text-blue-700">
+                      {order.deliveryFee > 0 ? formatRupiah(order.deliveryFee) : 'Gratis Ongkir (Rp 0)'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs pt-1.5 border-t border-slate-100">
+                    <span className="font-bold text-slate-900">Total Tagihan Final:</span>
+                    <span className="font-black text-emerald-700 text-sm">{formatRupiah(order.totalAmount)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {order.status === 'dibatalkan' && (
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-xs text-red-900 space-y-2">
+              <p className="font-extrabold text-sm text-red-950">Pesanan Dibatalkan ❌</p>
+              <p className="text-[11px] text-red-800 leading-relaxed">
+                {order.adminNotes || 'Mohon maaf pesanan belum dapat diproses karena kendala stok atau operasional.'}
               </p>
             </div>
           )}

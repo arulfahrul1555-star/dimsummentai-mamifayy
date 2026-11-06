@@ -919,65 +919,73 @@ export const db = {
   },
 
   async updateOrder(id: string, updates: Partial<Order>): Promise<Order | null> {
+    if (!id) return null;
+    const cleanId = id.trim();
+
     if (this.isUsingSupabase()) {
-      const supabase = getSupabaseAdminClient()!;
-      const current = await this.getOrderById(id);
-      if (!current) return null;
+      try {
+        const supabase = getSupabaseAdminClient();
+        if (supabase) {
+          const current = await this.getOrderById(cleanId);
+          if (current) {
+            const updatedOrder: Order = {
+              ...current,
+              ...updates,
+              updatedAt: new Date().toISOString(),
+            };
 
-      const updatedOrder: Order = {
-        ...current,
-        ...updates,
-        updatedAt: new Date().toISOString(),
-      };
+            if (updates.deliveryFee !== undefined || updates.discountAmount !== undefined) {
+              const fee = updates.deliveryFee !== undefined ? updates.deliveryFee : current.deliveryFee;
+              const discount = updates.discountAmount !== undefined ? updates.discountAmount : (current.discountAmount || 0);
+              updatedOrder.deliveryFee = fee;
+              updatedOrder.discountAmount = discount;
+              updatedOrder.totalAmount = Math.max(0, current.itemsTotal - discount + fee);
+            }
 
-      if (updates.deliveryFee !== undefined || updates.discountAmount !== undefined) {
-        const fee = updates.deliveryFee !== undefined ? updates.deliveryFee : current.deliveryFee;
-        const discount = updates.discountAmount !== undefined ? updates.discountAmount : (current.discountAmount || 0);
-        updatedOrder.deliveryFee = fee;
-        updatedOrder.discountAmount = discount;
-        updatedOrder.totalAmount = Math.max(0, current.itemsTotal - discount + fee);
-      }
+            const payload: Record<string, any> = {
+              updated_at: updatedOrder.updatedAt,
+            };
+            if (updates.status !== undefined) payload.status = updatedOrder.status;
+            if (updates.paymentStatus !== undefined) payload.payment_status = updatedOrder.paymentStatus;
+            if (updates.paymentMethod !== undefined) payload.payment_method = updatedOrder.paymentMethod;
+            if (updates.deliveryFee !== undefined) payload.delivery_fee = updatedOrder.deliveryFee;
+            if (updates.discountAmount !== undefined) payload.discount_amount = updatedOrder.discountAmount;
+            if (updates.totalAmount !== undefined || updates.deliveryFee !== undefined || updates.discountAmount !== undefined) {
+              payload.total_amount = updatedOrder.totalAmount;
+            }
+            if (updates.adminNotes !== undefined) payload.admin_notes = updatedOrder.adminNotes;
+            if (updates.customerNotes !== undefined) payload.customer_notes = updatedOrder.customerNotes;
 
-      const payload: Record<string, any> = {
-        updated_at: updatedOrder.updatedAt,
-      };
-      if (updates.status !== undefined) payload.status = updatedOrder.status;
-      if (updates.paymentStatus !== undefined) payload.payment_status = updatedOrder.paymentStatus;
-      if (updates.paymentMethod !== undefined) payload.payment_method = updatedOrder.paymentMethod;
-      if (updates.deliveryFee !== undefined) payload.delivery_fee = updatedOrder.deliveryFee;
-      if (updates.discountAmount !== undefined) payload.discount_amount = updatedOrder.discountAmount;
-      if (updates.totalAmount !== undefined || updates.deliveryFee !== undefined || updates.discountAmount !== undefined) {
-        payload.total_amount = updatedOrder.totalAmount;
-      }
-      if (updates.adminNotes !== undefined) payload.admin_notes = updatedOrder.adminNotes;
-      if (updates.customerNotes !== undefined) payload.customer_notes = updatedOrder.customerNotes;
+            const { data, error } = await supabase
+              .from('orders')
+              .update(payload)
+              .or(`id.eq.${cleanId},order_number.eq.${cleanId}`)
+              .select()
+              .single();
 
-      const { data, error } = await supabase
-        .from('orders')
-        .update(payload)
-        .or(`id.eq.${id},order_number.eq.${id}`)
-        .select()
-        .single();
-
-      if (!error && data) {
-        // Sync customer changes without duplicating stats
-        await this.syncCustomerOnOrderUpdate(current, updatedOrder);
-        // Also update local mirror
-        const localData = ensureDb();
-        const localIdx = localData.orders.findIndex((o) => o.id === id || o.orderNumber === id);
-        if (localIdx !== -1) {
-          localData.orders[localIdx] = mapOrderFromRow(data);
-          saveDb(localData);
+            if (!error && data) {
+              // Sync customer changes without duplicating stats
+              await this.syncCustomerOnOrderUpdate(current, updatedOrder);
+              // Also update local mirror
+              const localData = ensureDb();
+              const localIdx = localData.orders.findIndex((o) => o.id === cleanId || o.orderNumber === cleanId);
+              if (localIdx !== -1) {
+                localData.orders[localIdx] = mapOrderFromRow(data);
+                saveDb(localData);
+              }
+              return mapOrderFromRow(data);
+            }
+            console.warn('Supabase updateOrder failed, falling back to local storage:', error);
+          }
         }
-        return mapOrderFromRow(data);
+      } catch (err) {
+        console.warn('Supabase updateOrder exception, falling back to local storage:', err);
       }
-      console.warn('Supabase updateOrder failed, falling back to local storage:', error);
-      globalThis.__SUPABASE_TABLES_AVAILABLE__ = false;
     }
 
     // Local JSON fallback
     const data = ensureDb();
-    const index = data.orders.findIndex((o) => o.id === id || o.orderNumber === id);
+    const index = data.orders.findIndex((o) => o.id === cleanId || o.orderNumber === cleanId);
     if (index === -1) return null;
 
     const currentOrder = data.orders[index];

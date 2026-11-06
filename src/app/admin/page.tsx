@@ -158,10 +158,10 @@ export default function AdminDashboardPage() {
   const fetchData = async () => {
     try {
       const [resOrders, resCustomers, resAnalytics, resMenu] = await Promise.all([
-        fetch('/api/orders').then((r) => r.json()),
-        fetch('/api/customers').then((r) => r.json()),
-        fetch('/api/analytics').then((r) => r.json()),
-        fetch('/api/menu').then((r) => r.json()),
+        fetch(`/api/orders?t=${Date.now()}`, { cache: 'no-store' }).then((r) => r.json()),
+        fetch(`/api/customers?t=${Date.now()}`, { cache: 'no-store' }).then((r) => r.json()),
+        fetch(`/api/analytics?t=${Date.now()}`, { cache: 'no-store' }).then((r) => r.json()),
+        fetch(`/api/menu?t=${Date.now()}`, { cache: 'no-store' }).then((r) => r.json()),
       ]);
 
       if (resOrders.success) {
@@ -208,7 +208,7 @@ export default function AdminDashboardPage() {
     setDeliveryFees((prev) => ({ ...prev, [orderId]: val }));
   };
 
-  // 1. Approve Order Action (with manual delivery fee)
+  // 1. Approve Order Action (Direct 1-Click Accept without WhatsApp redirect)
   const handleApproveOrder = async (order: Order) => {
     const feeToSet =
       order.deliveryType === 'kurir_toko'
@@ -225,7 +225,7 @@ export default function AdminDashboardPage() {
               ...o,
               status: 'disetujui' as OrderStatus,
               deliveryFee: feeToSet,
-              total: o.itemsTotal + feeToSet,
+              totalAmount: Math.max(0, o.itemsTotal - (o.discountAmount || 0) + feeToSet),
             }
           : o
       )
@@ -243,18 +243,10 @@ export default function AdminDashboardPage() {
 
       const data = await res.json();
       if (data.success) {
-        // Prepare WhatsApp confirmation text & open WA
-        const updatedOrder = data.data;
-        const message = getOrderConfirmationMessage(updatedOrder, '6281234567890');
-        const waUrl = createWhatsAppUrl(updatedOrder.customerPhone, message);
-
+        // Direct approval - immediately sync dashboard without forcing WhatsApp redirect
         fetchData();
-
-        // Prompt to send WA
-        if (confirm(`Pesanan #${order.orderNumber} DISETUJUI! Mau langsung kirim rincian tagihan ke WhatsApp Kak ${order.customerName}?`)) {
-          window.open(waUrl, '_blank');
-        }
       } else {
+        alert(data.message || 'Gagal menyetujui pesanan');
         fetchData();
       }
     } catch (err) {
@@ -263,7 +255,7 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // 2. Reject / Cancel Order
+  // 2. Reject / Cancel Order (Direct Reject with reason, no WhatsApp redirect)
   const handleRejectOrder = async (order: Order) => {
     const reason = prompt('Alasan penolakan / pembatalan pesanan (misal: stok hari ini habis):', 'Mohon maaf stok varian ini sudah habis untuk hari ini Kak.');
     if (reason === null) return;
@@ -289,7 +281,7 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // 3. Update Order Status in Operations
+  // 3. Update Order Status in Operations (WhatsApp ONLY when order is ready / finished)
   const handleUpdateStatus = async (order: Order, nextStatus: OrderStatus) => {
     // Optimistic UI update
     setOrders((prev) =>
@@ -306,17 +298,23 @@ export default function AdminDashboardPage() {
       if (data.success) {
         fetchData();
 
-        // Optional WhatsApp notification trigger
-        if (nextStatus === 'dikirim' || nextStatus === 'siap_pickup') {
+        // Optional WhatsApp notification trigger ONLY when order is ready / finished ("pesenan sudah jadi")
+        if (nextStatus === 'siap_pickup') {
           const msg = getDeliveryNotificationMessage(data.data);
           const url = createWhatsAppUrl(order.customerPhone, msg);
-          if (confirm(`Status diubah jadi "${nextStatus}". Kirim notifikasi WhatsApp ke pelanggan?`)) {
+          if (confirm(`Pesanan #${order.orderNumber} SUDAH JADI & SIAP PICKUP! Mau kabari Kak ${order.customerName} via WhatsApp?`)) {
+            window.open(url, '_blank');
+          }
+        } else if (nextStatus === 'dikirim') {
+          const msg = getDeliveryNotificationMessage(data.data);
+          const url = createWhatsAppUrl(order.customerPhone, msg);
+          if (confirm(`Pesanan #${order.orderNumber} SUDAH JADI & SEDANG DIANTAR KURIR! Mau kabari Kak ${order.customerName} via WhatsApp?`)) {
             window.open(url, '_blank');
           }
         } else if (nextStatus === 'selesai') {
           const msg = getOrderCompletedMessage(data.data);
           const url = createWhatsAppUrl(order.customerPhone, msg);
-          if (confirm(`Pesanan selesai! Mau kirim ucapan terima kasih & minta ulasan ke WhatsApp pelanggan?`)) {
+          if (confirm(`Pesanan #${order.orderNumber} SELESAI! Mau kirim ucapan terima kasih ke WhatsApp Kak ${order.customerName}?`)) {
             window.open(url, '_blank');
           }
         }
@@ -908,7 +906,7 @@ export default function AdminDashboardPage() {
                           <div className="p-3 bg-slate-50 border-t border-slate-200 flex gap-2">
                             <button
                               onClick={() => handleRejectOrder(order)}
-                              className="px-3 py-2.5 rounded-xl border border-red-300 text-red-600 hover:bg-red-50 text-xs font-bold transition flex items-center justify-center gap-1"
+                              className="px-4 py-2.5 rounded-xl border border-red-300 text-red-600 hover:bg-red-50 text-xs font-bold transition flex items-center justify-center gap-1 active:scale-95"
                             >
                               <XCircle className="w-4 h-4" />
                               <span>Tolak</span>
@@ -919,7 +917,7 @@ export default function AdminDashboardPage() {
                               className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold py-2.5 px-4 rounded-xl shadow-sm transition flex items-center justify-center gap-1.5 active:scale-95"
                             >
                               <CheckCircle className="w-4 h-4" />
-                              <span>Setujui & Kirim WA Tagihan</span>
+                              <span>Terima Pesanan</span>
                             </button>
                           </div>
                         </div>
