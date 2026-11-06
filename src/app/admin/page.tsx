@@ -150,7 +150,7 @@ export default function AdminDashboardPage() {
   const [posPaymentMethod, setPosPaymentMethod] = useState<'qris' | 'cod'>('qris');
   const [posSelectedProd, setPosSelectedProd] = useState('');
   const [posPortion, setPosPortion] = useState<number>(6);
-  const [posTopping, setPosTopping] = useState<'original' | 'mozzarella' | 'melting'>('original');
+  const [posTopping, setPosTopping] = useState<string>('original');
   const [posQty, setPosQty] = useState(1);
   const [posCart, setPosCart] = useState<any[]>([]);
   const [posDeliveryFee, setPosDeliveryFee] = useState<number>(0);
@@ -1658,15 +1658,20 @@ export default function AdminDashboardPage() {
                           ))}
                       </select>
 
-                      <select
-                        value={posTopping}
-                        onChange={(e: any) => setPosTopping(e.target.value)}
-                        className="text-xs p-2 rounded-lg border border-slate-300"
-                      >
-                        <option value="original">Original (+Rp 0)</option>
-                        <option value="mozzarella">Keju Mozzarella (+Rp 5.000)</option>
-                        <option value="melting">Keju Melting (+Rp 6.000)</option>
-                      </select>
+                      {products.find((p) => p.id === posSelectedProd)?.allowedToppings &&
+                      (products.find((p) => p.id === posSelectedProd)?.allowedToppings || []).length > 0 ? (
+                        <select
+                          value={posTopping}
+                          onChange={(e: any) => setPosTopping(e.target.value)}
+                          className="text-xs p-2 rounded-lg border border-slate-300"
+                        >
+                          {(products.find((p) => p.id === posSelectedProd)?.allowedToppings || []).map((t) => (
+                            <option key={t.id} value={t.id}>
+                              {t.name} {t.price > 0 ? `(+${formatRupiah(t.price)})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      ) : null}
                     </div>
 
                     <div className="flex justify-between items-center pt-2">
@@ -1822,9 +1827,9 @@ export default function AdminDashboardPage() {
 
                           <div className="flex items-center justify-between mb-1">
                             <h3 className="font-extrabold text-slate-900 text-base">{p.name}</h3>
-                            {isMentai ? (
+                            {p.allowedToppings && p.allowedToppings.length > 0 ? (
                               <span className="text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded-md">
-                                Ada 3 Topping Mentai
+                                Ada {p.allowedToppings.length} Pilihan Varian
                               </span>
                             ) : (
                               <span className="text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-md">

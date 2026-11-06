@@ -746,17 +746,17 @@ export default function PublicMenuPage() {
                                   : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
                               }`}
                             >
-                              Isi {portion.pcs} ({formatRupiah(portion.price)})
+                              {portion.name ? portion.name : `Isi ${portion.pcs}`} ({formatRupiah(portion.price)})
                             </button>
                           ))}
                         </div>
                       </div>
 
-                      {/* Topping Selector Pills (Only for Dimsum Mentai) */}
+                      {/* Topping / Variant Selector Pills */}
                       {hasToppings && (
                         <div className="mt-3">
                           <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1.5">
-                            2. Pilihan Topping Mentai:
+                            {product.id === 'prod-mentai' ? '2. Pilihan Topping Mentai:' : '2. Pilihan Varian Rasa:'}
                           </label>
                           <div className="flex flex-wrap gap-1.5">
                             {product.allowedToppings.map((topping) => (

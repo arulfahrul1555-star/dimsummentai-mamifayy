@@ -14,10 +14,11 @@ export type PaymentStatus = 'menunggu_pembayaran' | 'lunas';
 export interface PortionOption {
   pcs: number;
   price: number;
+  name?: string;
 }
 
 export interface ToppingOption {
-  id: 'original' | 'mozzarella' | 'melting';
+  id: string;
   name: string;
   price: number;
 }

@@ -85,25 +85,29 @@
     },
     {
       "id": "prod-platter",
-      "name": "Mix Platter Party Box",
-      "category": "Favorit",
-      "description": "Kombinasi lengkap aneka varian dimsum kukus & goreng dengan siraman mentai torch melimpah.",
-      "image": "/images/products/mix-platter.jpg",
+      "name": "Dimsum Goreng Keju Lumer Mamifayy",
+      "category": "Gorengan",
+      "description": "Dimsum goreng crispy dengan isian keju lumer. Tersedia pilihan Original gurih renyah (Rp15.000) atau Mentai torch creamy khas Mamifayy (Rp20.000).",
+      "image": "/images/products/dimsum-goreng-real.jpg",
       "portions": [
         {
-          "pcs": 8,
-          "price": 35000
-        },
-        {
-          "pcs": 10,
-          "price": 44000
-        },
-        {
-          "pcs": 16,
-          "price": 68000
+          "pcs": 3,
+          "price": 15000,
+          "name": "1 Box (Isi 3)"
         }
       ],
-      "allowedToppings": [],
+      "allowedToppings": [
+        {
+          "id": "original",
+          "name": "Original",
+          "price": 0
+        },
+        {
+          "id": "mentai",
+          "name": "Mentai Torch",
+          "price": 5000
+        }
+      ],
       "isAvailable": true
     },
     {
