@@ -16,7 +16,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     name: 'Dimsum Mentai Spesial Mamifayy',
     category: 'Signature',
     description: 'Dimsum lembut dipadu saus mentai gurih creamy khas Mamifayy yang ditorch hingga harum menggoda.',
-    image: '/images/products/dimsum-mentai.jpg',
+    image: '/images/products/dimsum-mentai-real.jpg',
     portions: [
       { pcs: 6, price: 26000 },
       { pcs: 8, price: 34000 },
