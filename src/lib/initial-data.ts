@@ -131,7 +131,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     name: 'MIX PLATTER REGULER',
     category: 'Dimsum Tart',
     description: 'Mentai isi 2, dimsum ori 3, pangsit crispy 4.',
-    image: '/images/products/platter-reguler.jpg',
+    image: '/images/products/platter-reguler-real.jpg',
     portions: [{ pcs: 9, price: 30000 }],
     allowedToppings: [],
     isAvailable: true,
