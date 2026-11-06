@@ -66,7 +66,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     name: 'Pangsit Goreng Renyah Mamifayy',
     category: 'Gorengan',
     description: 'Kulit pangsit renyah keemasan dengan isian daging ayam tebal gurih, sangat cocok untuk camilan.',
-    image: '/images/products/pangsit-goreng.jpg',
+    image: '/images/products/pangsit-goreng-real.jpg',
     portions: [
       { pcs: 4, price: 14000 },
       { pcs: 6, price: 20000 },
