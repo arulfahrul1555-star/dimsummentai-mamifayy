@@ -175,11 +175,10 @@ export default function AdminDashboardPage() {
       if (resCustomers.success) setCustomers(resCustomers.data);
       if (resAnalytics.success) setAnalytics(resAnalytics.data);
       if (resMenu.success) {
-        setProducts(resMenu.data.products);
-        if (resMenu.data.products.length > 0 && !posSelectedProd) {
-          setPosSelectedProd(resMenu.data.products[0].id);
-          setPosPortion(resMenu.data.products[0].portions[0]?.pcs || 6);
-        }
+        const fetchedProds: Product[] = resMenu.data.products || [];
+        setProducts((prev) =>
+          JSON.stringify(prev) === JSON.stringify(fetchedProds) ? prev : fetchedProds
+        );
       }
       setLastSyncTime(new Date());
     } catch (err) {
@@ -196,6 +195,16 @@ export default function AdminDashboardPage() {
     const interval = setInterval(fetchData, 3500);
     return () => clearInterval(interval);
   }, []);
+
+  // Initialize POS menu selection once when products load (safe from polling stale-closure resets)
+  useEffect(() => {
+    if (products.length > 0 && (!posSelectedProd || !products.some((p) => p.id === posSelectedProd))) {
+      const firstProd = products[0];
+      setPosSelectedProd(firstProd.id);
+      setPosPortion(firstProd.portions[0]?.pcs || 6);
+      setPosTopping(firstProd.allowedToppings?.[0]?.id || '');
+    }
+  }, [products, posSelectedProd]);
 
   useEffect(() => {
     const secTimer = setInterval(() => {
@@ -350,11 +359,11 @@ export default function AdminDashboardPage() {
 
   // POS Add item to cart
   const handlePosAddToCart = () => {
-    const prod = products.find((p) => p.id === posSelectedProd);
+    const prod = products.find((p) => p.id === posSelectedProd) || products[0];
     if (!prod) return;
 
     const portionObj = prod.portions.find((p) => p.pcs === posPortion) || prod.portions[0];
-    const toppingObj = (prod.allowedToppings || []).find((t) => t.id === posTopping) || (prod.allowedToppings && prod.allowedToppings[0]);
+    const toppingObj = (prod.allowedToppings || []).find((t) => t.id === posTopping) || prod.allowedToppings?.[0];
     const toppingPrice = toppingObj ? toppingObj.price : 0;
     const unitPrice = (portionObj ? portionObj.price : 0) + toppingPrice;
     const subtotal = unitPrice * posQty;
@@ -373,6 +382,7 @@ export default function AdminDashboardPage() {
         subtotal,
       },
     ]);
+    setPosQty(1);
   };
 
   // POS Submit order
@@ -415,6 +425,8 @@ export default function AdminDashboardPage() {
         setPosDeliveryFee(0);
         fetchData();
         setActiveTab('approval');
+      } else {
+        alert(data.message || 'Gagal menyimpan pesanan kasir');
       }
     } catch (err) {
       alert('Gagal menyimpan pesanan kasir');
@@ -522,6 +534,8 @@ export default function AdminDashboardPage() {
       (c.phone || '').includes(crmSearch);
     return matchTag && matchSearch;
   });
+
+  const activePosProd = products.find((p) => p.id === posSelectedProd) || products[0];
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col">
@@ -1627,13 +1641,17 @@ export default function AdminDashboardPage() {
                     </span>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       <select
-                        value={posSelectedProd}
+                        value={activePosProd?.id || ''}
                         onChange={(e) => {
-                          setPosSelectedProd(e.target.value);
-                          const prod = products.find((p) => p.id === e.target.value);
-                          if (prod) setPosPortion(prod.portions[0]?.pcs || 6);
+                          const nextId = e.target.value;
+                          setPosSelectedProd(nextId);
+                          const prod = products.find((p) => p.id === nextId);
+                          if (prod) {
+                            setPosPortion(prod.portions[0]?.pcs || 6);
+                            setPosTopping(prod.allowedToppings?.[0]?.id || '');
+                          }
                         }}
-                        className="text-xs p-2 rounded-lg border border-slate-300"
+                        className="text-xs p-2 rounded-lg border border-slate-300 bg-white text-slate-900 font-medium"
                       >
                         {products.map((p) => (
                           <option key={p.id} value={p.id}>
@@ -1644,32 +1662,33 @@ export default function AdminDashboardPage() {
 
                       <select
                         value={posPortion}
-                        onChange={(e) => setPosPortion(parseInt(e.target.value))}
-                        className="text-xs p-2 rounded-lg border border-slate-300"
+                        onChange={(e) => setPosPortion(parseInt(e.target.value, 10))}
+                        className="text-xs p-2 rounded-lg border border-slate-300 bg-white text-slate-900"
                       >
-                        {products
-                          .find((p) => p.id === posSelectedProd)
-                          ?.portions.map((portion) => (
-                            <option key={portion.pcs} value={portion.pcs}>
-                              Isi {portion.pcs} ({formatRupiah(portion.price)})
-                            </option>
-                          ))}
+                        {(activePosProd?.portions || []).map((portion, idx) => (
+                          <option key={`${portion.pcs}-${idx}`} value={portion.pcs}>
+                            {portion.name ? portion.name : `Isi ${portion.pcs}`} ({formatRupiah(portion.price)})
+                          </option>
+                        ))}
                       </select>
 
-                      {products.find((p) => p.id === posSelectedProd)?.allowedToppings &&
-                      (products.find((p) => p.id === posSelectedProd)?.allowedToppings || []).length > 0 ? (
+                      {activePosProd?.allowedToppings && activePosProd.allowedToppings.length > 0 ? (
                         <select
                           value={posTopping}
-                          onChange={(e: any) => setPosTopping(e.target.value)}
-                          className="text-xs p-2 rounded-lg border border-slate-300"
+                          onChange={(e) => setPosTopping(e.target.value)}
+                          className="text-xs p-2 rounded-lg border border-slate-300 bg-white text-slate-900"
                         >
-                          {(products.find((p) => p.id === posSelectedProd)?.allowedToppings || []).map((t) => (
+                          {activePosProd.allowedToppings.map((t) => (
                             <option key={t.id} value={t.id}>
                               {t.name} {t.price > 0 ? `(+${formatRupiah(t.price)})` : ''}
                             </option>
                           ))}
                         </select>
-                      ) : null}
+                      ) : (
+                        <div className="text-[11px] text-slate-400 flex items-center px-2.5 py-2 bg-slate-100 rounded-lg border border-slate-200">
+                          Tanpa pilihan topping
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex justify-between items-center pt-2">
@@ -1679,7 +1698,7 @@ export default function AdminDashboardPage() {
                           type="number"
                           min={1}
                           value={posQty}
-                          onChange={(e) => setPosQty(parseInt(e.target.value) || 1)}
+                          onChange={(e) => setPosQty(parseInt(e.target.value, 10) || 1)}
                           className="w-16 p-1 rounded-lg border border-slate-300 text-center font-bold"
                         />
                       </div>
@@ -1696,15 +1715,36 @@ export default function AdminDashboardPage() {
 
                   {/* Cart preview */}
                   {posCart.length > 0 && (
-                    <div className="border border-slate-200 rounded-xl p-3 space-y-1">
-                      {posCart.map((i, idx) => (
-                        <div key={idx} className="text-xs flex justify-between">
-                          <span>
-                            {i.quantity}x {i.productName} (Isi {i.portion} • {i.toppingName})
-                          </span>
-                          <span className="font-bold">{formatRupiah(i.subtotal)}</span>
-                        </div>
-                      ))}
+                    <div className="border border-blue-200 bg-blue-50/40 rounded-xl p-3 space-y-2">
+                      <span className="text-[11px] font-bold text-slate-700 block">
+                        Daftar Menu Dipilih ({posCart.length} item):
+                      </span>
+                      <div className="space-y-1.5">
+                        {posCart.map((i, idx) => (
+                          <div
+                            key={i.id || idx}
+                            className="text-xs flex items-center justify-between gap-2 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200"
+                          >
+                            <span className="text-slate-800">
+                              <strong>{i.quantity}x</strong> {i.productName} (Isi {i.portion} • {i.toppingName})
+                            </span>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="font-bold text-slate-900">{formatRupiah(i.subtotal)}</span>
+                              <button
+                                type="button"
+                                onClick={() => setPosCart((prev) => prev.filter((_, index) => index !== idx))}
+                                className="text-[11px] font-bold text-red-600 hover:text-red-700 px-1.5 py-0.5 rounded bg-red-50 hover:bg-red-100 transition"
+                              >
+                                Hapus
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex justify-between items-center pt-1.5 border-t border-blue-200 text-xs font-extrabold text-blue-900">
+                        <span>Subtotal Menu:</span>
+                        <span>{formatRupiah(posCart.reduce((sum, i) => sum + i.subtotal, 0))}</span>
+                      </div>
                     </div>
                   )}
 
