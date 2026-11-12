@@ -2,6 +2,14 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
+
+const NO_CACHE_HEADERS = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+  Pragma: 'no-cache',
+  Expires: '0',
+};
 
 export async function GET(request: Request) {
   try {
@@ -14,11 +22,11 @@ export async function GET(request: Request) {
       customers = customers.filter((c) => c.tag === tag);
     }
 
-    return NextResponse.json({ success: true, data: customers });
+    return NextResponse.json({ success: true, data: customers }, { headers: NO_CACHE_HEADERS });
   } catch (error) {
     return NextResponse.json(
       { success: false, message: 'Gagal memuat data pelanggan' },
-      { status: 500 }
+      { status: 500, headers: NO_CACHE_HEADERS }
     );
   }
 }

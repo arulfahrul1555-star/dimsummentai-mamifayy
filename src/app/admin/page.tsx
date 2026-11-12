@@ -38,6 +38,7 @@ import {
   VolumeX,
   X,
   UserPlus,
+  Download,
 } from 'lucide-react';
 import { Order, Customer, Product, OrderStatus, PaymentStatus } from '@/types';
 import {
@@ -142,6 +143,11 @@ export default function AdminDashboardPage() {
   // Operations filter
   const [opsStatusFilter, setOpsStatusFilter] = useState<'all' | 'disetujui' | 'diproses' | 'dikirim' | 'siap_pickup' | 'selesai'>('all');
 
+  // Monthly report period filter ('last30' or 'YYYY-MM')
+  const [selectedReportMonth, setSelectedReportMonth] = useState<string>('last30');
+  const selectedReportMonthRef = React.useRef<string>('last30');
+  selectedReportMonthRef.current = selectedReportMonth;
+
   // Manual POS state
   const [posName, setPosName] = useState('');
   const [posPhone, setPosPhone] = useState('');
@@ -155,12 +161,15 @@ export default function AdminDashboardPage() {
   const [posCart, setPosCart] = useState<any[]>([]);
   const [posDeliveryFee, setPosDeliveryFee] = useState<number>(0);
 
-  const fetchData = async () => {
+  const fetchData = async (monthOverride?: string) => {
+    const activeMonth = typeof monthOverride === 'string' ? monthOverride : selectedReportMonthRef.current;
     try {
       const [resOrders, resCustomers, resAnalytics, resMenu] = await Promise.all([
         fetch(`/api/orders?t=${Date.now()}`, { cache: 'no-store' }).then((r) => r.json()),
         fetch(`/api/customers?t=${Date.now()}`, { cache: 'no-store' }).then((r) => r.json()),
-        fetch(`/api/analytics?t=${Date.now()}`, { cache: 'no-store' }).then((r) => r.json()),
+        fetch(`/api/analytics?month=${encodeURIComponent(activeMonth)}&t=${Date.now()}`, {
+          cache: 'no-store',
+        }).then((r) => r.json()),
         fetch(`/api/menu?t=${Date.now()}`, { cache: 'no-store' }).then((r) => r.json()),
       ]);
 
@@ -192,7 +201,7 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     fetchData();
     // Fast Real-Time polling every 3.5s for instant order & omzet updates
-    const interval = setInterval(fetchData, 3500);
+    const interval = setInterval(() => fetchData(), 3500);
     return () => clearInterval(interval);
   }, []);
 
@@ -537,6 +546,56 @@ export default function AdminDashboardPage() {
 
   const activePosProd = products.find((p) => p.id === posSelectedProd) || products[0];
 
+  const handleExportMonthlyCsv = () => {
+    const report = analytics?.monthlyReport;
+    if (!report || !Array.isArray(report.dailyRows)) return;
+
+    const header = [
+      'Tanggal',
+      'Keterangan Hari',
+      'Jumlah Transaksi',
+      'Pesanan Selesai',
+      'Total Box/Porsi',
+      'QRIS / Transfer (Rp)',
+      'Kas COD (Rp)',
+      'Total Omzet (Rp)',
+      'Omzet Selesai/Lunas (Rp)',
+    ];
+    const rows = report.dailyRows.map((row: any) => [
+      row.date,
+      `"${row.dateLabel}"`,
+      row.ordersCount,
+      row.completedCount,
+      row.boxesCount,
+      row.qrisAmount,
+      row.codAmount,
+      row.totalOmzet,
+      row.settledOmzet,
+    ]);
+    rows.push([
+      'TOTAL',
+      `"${report.periodLabel}"`,
+      report.ordersCount,
+      report.completedOrdersCount,
+      report.totalBoxes,
+      report.qrisAmount,
+      report.codAmount,
+      report.totalOmzet,
+      report.settledOmzet,
+    ]);
+
+    const csvContent = '\uFEFF' + [header.join(','), ...rows.map((r: any[]) => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `laporan-omzet-mamifayy-${analytics.selectedMonth || '1-bulan'}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col">
       {/* Top Admin Navbar */}
@@ -671,7 +730,10 @@ export default function AdminDashboardPage() {
 
             {/* Tab 4: Reports */}
             <button
-              onClick={() => setActiveTab('reports')}
+              onClick={() => {
+                setActiveTab('reports');
+                fetchData();
+              }}
               className={`px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
                 activeTab === 'reports'
                   ? 'bg-white text-blue-900 shadow-sm'
@@ -1480,31 +1542,56 @@ export default function AdminDashboardPage() {
             )}
 
             {/* ======================================================== */}
-            {/* TAB 4: LAPORAN OMZET & FINANSIAL (QRIS VS COD AUDIT)    */}
+            {/* TAB 4: LAPORAN OMZET & FINANSIAL (REAL-TIME & 1 BULAN)   */}
             {/* ======================================================== */}
             {activeTab === 'reports' && analytics && (
               <div className="space-y-5">
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-                  <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-emerald-600" />
-                    <span>Laporan Keuangan & Audit Setoran Kas Kurir</span>
-                  </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Data otomatis terekap dari pesanan yang selesai atau lunas.
-                  </p>
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                      <TrendingUp className="w-5 h-5 text-emerald-600" />
+                      <span>Laporan Keuangan, Omzet Real-Time & Audit Kas</span>
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Otomatis masuk secara real-time saat ada pesanan masuk maupun selesai (waktu WIB).
+                    </p>
+                  </div>
+                  <span className="inline-flex items-center gap-1.5 self-start sm:self-auto px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <span>Sinkron Real-Time</span>
+                  </span>
                 </div>
 
                 {/* Top Metrics Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                      Omzet Hari Ini
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+                  <div className="bg-white p-4 rounded-2xl border-2 border-blue-200 shadow-sm">
+                    <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider block">
+                      Omzet Hari Ini (WIB)
                     </span>
                     <span className="text-xl font-black text-blue-700 mt-1 block">
-                      {formatRupiah(analytics.todayOmzet)}
+                      {formatRupiah(analytics.todayOmzet || 0)}
                     </span>
-                    <span className="text-xs text-slate-500 mt-1 block">
-                      {analytics.todayOrdersCount} transaksi hari ini
+                    <span className="text-xs text-slate-600 mt-1 block font-medium">
+                      {analytics.todayOrdersCount || 0} transaksi hari ini
+                    </span>
+                    <span className="text-[11px] text-slate-400 mt-0.5 block">
+                      {analytics.todayCompletedCount || 0} selesai • Selesai:{' '}
+                      {formatRupiah(analytics.todaySettledOmzet || 0)}
+                    </span>
+                  </div>
+
+                  <div className="bg-indigo-50/70 p-4 rounded-2xl border border-indigo-200 shadow-sm">
+                    <span className="text-[11px] font-bold text-indigo-800 uppercase tracking-wider block">
+                      Omzet 1 Bulan (30 Hari)
+                    </span>
+                    <span className="text-xl font-black text-indigo-800 mt-1 block">
+                      {formatRupiah(analytics.last30Omzet || 0)}
+                    </span>
+                    <span className="text-xs text-indigo-700 mt-1 block font-medium">
+                      {analytics.last30OrdersCount || 0} transaksi (30 hari terakhir)
                     </span>
                   </div>
 
@@ -1513,21 +1600,23 @@ export default function AdminDashboardPage() {
                       Total Omzet Kumulatif
                     </span>
                     <span className="text-xl font-black text-slate-900 mt-1 block">
-                      {formatRupiah(analytics.totalOmzet)}
+                      {formatRupiah(analytics.totalOmzet || 0)}
                     </span>
-                    <span className="text-xs text-slate-500 mt-1 block">Semua pesanan selesai</span>
+                    <span className="text-[11px] text-slate-500 mt-1 block">
+                      Selesai/Lunas: {formatRupiah(analytics.settledOmzet || 0)}
+                    </span>
                   </div>
 
                   {/* Cash COD vs Non-Cash QRIS Audit */}
                   <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl shadow-sm">
                     <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block">
-                      💵 Total Uang Kas COD (Kurir Toko)
+                      💵 Total Uang Kas COD
                     </span>
                     <span className="text-xl font-black text-emerald-700 mt-1 block">
-                      {formatRupiah(analytics.totalCodAmount)}
+                      {formatRupiah(analytics.totalCodAmount || 0)}
                     </span>
                     <span className="text-[11px] text-emerald-800 mt-1 block">
-                      * Uang fisik yang harus disetor kurir
+                      Selesai: {formatRupiah(analytics.settledCodAmount || 0)}
                     </span>
                   </div>
 
@@ -1536,37 +1625,263 @@ export default function AdminDashboardPage() {
                       💳 Total Masuk QRIS / Transfer
                     </span>
                     <span className="text-xl font-black text-blue-700 mt-1 block">
-                      {formatRupiah(analytics.totalQrisAmount)}
+                      {formatRupiah(analytics.totalQrisAmount || 0)}
                     </span>
                     <span className="text-[11px] text-blue-800 mt-1 block">
-                      * Masuk rekening bank toko
+                      Lunas/Selesai: {formatRupiah(analytics.settledQrisAmount || 0)}
                     </span>
                   </div>
                 </div>
 
-                {/* Portion Breakdown */}
+                {/* ======================================================== */}
+                {/* LAPORAN SELAMA 1 BULAN (CHART & TABEL REKAP HARIAN)       */}
+                {/* ======================================================== */}
+                {analytics.monthlyReport && (
+                  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm sm:text-base font-extrabold text-slate-900 flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-blue-600" />
+                          <span>Laporan Penjualan 1 Bulan</span>
+                          <span className="text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded-full">
+                            {analytics.monthlyReport.periodLabel}
+                          </span>
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Ringkasan harian pemasukan, jumlah pesanan, QRIS vs COD selama periode 1 bulan.
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <select
+                          value={selectedReportMonth}
+                          onChange={(e) => {
+                            const nextMonth = e.target.value;
+                            setSelectedReportMonth(nextMonth);
+                            selectedReportMonthRef.current = nextMonth;
+                            fetchData(nextMonth);
+                          }}
+                          className="text-xs font-semibold px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="last30">30 Hari Terakhir (1 Bulan)</option>
+                          {(analytics.availableMonths || []).map((m: { key: string; label: string }) => (
+                            <option key={m.key} value={m.key}>
+                              Bulan {m.label}
+                            </option>
+                          ))}
+                        </select>
+
+                        <button
+                          type="button"
+                          onClick={handleExportMonthlyCsv}
+                          className="inline-flex items-center gap-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl transition shadow-xs"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Ekspor CSV</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Monthly Summary Strip */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block">
+                          Omzet Periode Ini
+                        </span>
+                        <span className="text-base font-black text-blue-700 mt-0.5 block">
+                          {formatRupiah(analytics.monthlyReport.totalOmzet || 0)}
+                        </span>
+                        <span className="text-[11px] text-slate-500">
+                          Selesai: {formatRupiah(analytics.monthlyReport.settledOmzet || 0)}
+                        </span>
+                      </div>
+
+                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block">
+                          Transaksi & Porsi
+                        </span>
+                        <span className="text-base font-black text-slate-900 mt-0.5 block">
+                          {analytics.monthlyReport.ordersCount || 0} Order
+                        </span>
+                        <span className="text-[11px] text-slate-500">
+                          {analytics.monthlyReport.totalBoxes || 0} box terjual •{' '}
+                          {analytics.monthlyReport.activeDaysCount || 0} hari aktif
+                        </span>
+                      </div>
+
+                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block">
+                          QRIS vs COD (1 Bulan)
+                        </span>
+                        <span className="text-xs font-bold text-blue-700 mt-1 block">
+                          QRIS: {formatRupiah(analytics.monthlyReport.qrisAmount || 0)}
+                        </span>
+                        <span className="text-xs font-bold text-emerald-700 block">
+                          COD: {formatRupiah(analytics.monthlyReport.codAmount || 0)}
+                        </span>
+                      </div>
+
+                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block">
+                          Rata-Rata Penjualan
+                        </span>
+                        <span className="text-xs font-bold text-slate-900 mt-1 block">
+                          {formatRupiah(analytics.monthlyReport.averageDailyOmzet || 0)} / hari
+                        </span>
+                        <span className="text-[11px] text-slate-500 block">
+                          {formatRupiah(analytics.monthlyReport.averageOrderValue || 0)} / transaksi
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Daily Bar Chart across 1 Month */}
+                    {Array.isArray(analytics.monthlyReport.chartDays) &&
+                      analytics.monthlyReport.chartDays.length > 0 && (() => {
+                        const chartDays = analytics.monthlyReport.chartDays as Array<{
+                          date: string;
+                          shortLabel: string;
+                          totalOmzet: number;
+                          ordersCount: number;
+                        }>;
+                        const maxDayOmzet = Math.max(1, ...chartDays.map((d) => d.totalOmzet));
+                        return (
+                          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5">
+                            <div className="flex items-center justify-between text-[11px] text-slate-500 mb-2">
+                              <span className="font-bold text-slate-700">Grafik Omzet Harian (1 Bulan)</span>
+                              <span>Puncak Harian: {formatRupiah(maxDayOmzet === 1 ? 0 : maxDayOmzet)}</span>
+                            </div>
+                            <div className="flex items-end gap-1 h-24 pt-2">
+                              {chartDays.map((day) => {
+                                const heightPct =
+                                  day.totalOmzet > 0
+                                    ? Math.max(8, Math.round((day.totalOmzet / maxDayOmzet) * 100))
+                                    : 4;
+                                return (
+                                  <div
+                                    key={day.date}
+                                    className="flex-1 flex flex-col items-center justify-end h-full group"
+                                    title={`${day.date}: ${formatRupiah(day.totalOmzet)} (${day.ordersCount} order)`}
+                                  >
+                                    <div
+                                      className={`w-full rounded-t transition-all ${
+                                        day.totalOmzet > 0
+                                          ? 'bg-blue-600 group-hover:bg-blue-700'
+                                          : 'bg-slate-200'
+                                      }`}
+                                      style={{ height: `${heightPct}%` }}
+                                    />
+                                    <span className="text-[9px] text-slate-400 mt-1 hidden sm:block">
+                                      {day.shortLabel}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                    {/* Monthly Daily Breakdown Table */}
+                    {Array.isArray(analytics.monthlyReport.dailyRows) &&
+                    analytics.monthlyReport.dailyRows.length > 0 ? (
+                      <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                        <table className="w-full text-left text-xs">
+                          <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                            <tr>
+                              <th className="py-2.5 px-3 whitespace-nowrap">Tanggal</th>
+                              <th className="py-2.5 px-3 text-center whitespace-nowrap">Transaksi</th>
+                              <th className="py-2.5 px-3 text-center whitespace-nowrap">Box</th>
+                              <th className="py-2.5 px-3 text-right whitespace-nowrap">QRIS</th>
+                              <th className="py-2.5 px-3 text-right whitespace-nowrap">COD</th>
+                              <th className="py-2.5 px-3 text-right whitespace-nowrap">Total Omzet</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {analytics.monthlyReport.dailyRows.map((row: any) => (
+                              <tr key={row.date} className="hover:bg-blue-50/40">
+                                <td className="py-2.5 px-3 font-semibold text-slate-800 whitespace-nowrap">
+                                  {row.dateLabel}
+                                </td>
+                                <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                                  <span className="font-bold text-slate-900">{row.ordersCount}</span>
+                                  <span className="text-[10px] text-emerald-700 ml-1">
+                                    ({row.completedCount} selesai)
+                                  </span>
+                                </td>
+                                <td className="py-2.5 px-3 text-center font-medium text-slate-700 whitespace-nowrap">
+                                  {row.boxesCount} box
+                                </td>
+                                <td className="py-2.5 px-3 text-right text-blue-700 font-semibold whitespace-nowrap">
+                                  {formatRupiah(row.qrisAmount)}
+                                </td>
+                                <td className="py-2.5 px-3 text-right text-emerald-700 font-semibold whitespace-nowrap">
+                                  {formatRupiah(row.codAmount)}
+                                </td>
+                                <td className="py-2.5 px-3 text-right font-extrabold text-slate-900 whitespace-nowrap">
+                                  {formatRupiah(row.totalOmzet)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot className="bg-blue-50/70 border-t-2 border-blue-200 font-extrabold text-slate-900">
+                            <tr>
+                              <td className="py-2.5 px-3 whitespace-nowrap">TOTAL 1 BULAN</td>
+                              <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                                {analytics.monthlyReport.ordersCount} order
+                              </td>
+                              <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                                {analytics.monthlyReport.totalBoxes} box
+                              </td>
+                              <td className="py-2.5 px-3 text-right text-blue-700 whitespace-nowrap">
+                                {formatRupiah(analytics.monthlyReport.qrisAmount)}
+                              </td>
+                              <td className="py-2.5 px-3 text-right text-emerald-700 whitespace-nowrap">
+                                {formatRupiah(analytics.monthlyReport.codAmount)}
+                              </td>
+                              <td className="py-2.5 px-3 text-right text-blue-900 whitespace-nowrap">
+                                {formatRupiah(analytics.monthlyReport.totalOmzet)}
+                              </td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 text-center text-xs text-slate-500">
+                        Belum ada transaksi pada periode {analytics.monthlyReport.periodLabel}.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Portion Breakdown & Favorite Variants */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
                     <h3 className="text-sm font-bold text-slate-800 mb-3">
                       Porsi Paling Laris (Ukuran Box)
                     </h3>
                     <div className="space-y-2.5">
-                      {Object.entries(analytics.portionCounts).map(([pcs, count]: any) => (
-                        <div key={pcs} className="flex items-center justify-between text-xs">
-                          <span className="font-semibold text-slate-700">Porsi Isi {pcs} pcs</span>
-                          <div className="flex items-center gap-2">
-                            <div className="w-32 bg-slate-100 rounded-full h-2.5 overflow-hidden">
-                              <div
-                                className="bg-blue-600 h-full rounded-full"
-                                style={{ width: `${Math.min(100, count * 20)}%` }}
-                              ></div>
+                      {(() => {
+                        const entries = Object.entries(analytics.portionCounts || {})
+                          .map(([pcs, count]) => [Number(pcs), Number(count)] as [number, number])
+                          .sort(([a], [b]) => a - b);
+                        const maxBox = Math.max(1, ...entries.map(([, c]) => c));
+                        return entries.map(([pcs, count]) => (
+                          <div key={pcs} className="flex items-center justify-between text-xs">
+                            <span className="font-semibold text-slate-700">Porsi Isi {pcs} pcs</span>
+                            <div className="flex items-center gap-2">
+                              <div className="w-32 bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                                <div
+                                  className="bg-blue-600 h-full rounded-full transition-all"
+                                  style={{ width: `${Math.round((count / maxBox) * 100)}%` }}
+                                ></div>
+                              </div>
+                              <span className="font-bold text-slate-900 w-12 text-right">
+                                {count} box
+                              </span>
                             </div>
-                            <span className="font-bold text-slate-900 w-12 text-right">
-                              {count} box
-                            </span>
                           </div>
-                        </div>
-                      ))}
+                        ));
+                      })()}
                     </div>
                   </div>
 
@@ -1575,10 +1890,10 @@ export default function AdminDashboardPage() {
                       Varian Menu Favorit
                     </h3>
                     <div className="space-y-2.5">
-                      {Object.entries(analytics.productCounts).map(([name, count]: any) => (
-                        <div key={name} className="flex items-center justify-between text-xs">
-                          <span className="font-semibold text-slate-700">{name}</span>
-                          <span className="font-bold bg-blue-50 text-blue-800 px-2.5 py-0.5 rounded-full">
+                      {Object.entries(analytics.productCounts || {}).map(([name, count]: [string, any]) => (
+                        <div key={name} className="flex items-center justify-between text-xs gap-2">
+                          <span className="font-semibold text-slate-700 truncate">{name}</span>
+                          <span className="font-bold bg-blue-50 text-blue-800 px-2.5 py-0.5 rounded-full shrink-0">
                             {count} porsi
                           </span>
                         </div>

@@ -50,6 +50,10 @@ let publicClientKey: string | null = null;
 let adminClientInstance: SupabaseClient | null = null;
 let adminClientKey: string | null = null;
 
+// Force no-store on all Supabase HTTP requests so Next.js Data Cache never returns stale rows
+const noStoreFetch: typeof fetch = (input, init) =>
+  fetch(input, { ...init, cache: 'no-store' });
+
 /**
  * Returns public Supabase client (using NEXT_PUBLIC_SUPABASE_ANON_KEY).
  * Suitable for client-side or public anon reads.
@@ -64,6 +68,9 @@ export function getSupabaseClient(): SupabaseClient | null {
     publicClientInstance = createClient(url, key, {
       auth: {
         persistSession: false,
+      },
+      global: {
+        fetch: noStoreFetch,
       },
     });
     publicClientKey = cacheKey;
@@ -87,6 +94,9 @@ export function getSupabaseAdminClient(): SupabaseClient | null {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
+      },
+      global: {
+        fetch: noStoreFetch,
       },
     });
     adminClientKey = cacheKey;
